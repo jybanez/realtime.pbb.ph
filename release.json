@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "app": "pbb-realtime",
+  "name": "PBB Realtime",
+  "milestone": 1,
+  "version": "1.0.0",
+  "display_version": "v1-1.0.0",
+  "build": {
+    "version": "1.0.0",
+    "id": null,
+    "built_at": null,
+    "git_commit": null,
+    "builder": null
+  },
+  "release_date": "2026-05-15",
+  "release_name": "Kit Setup Installer Contract",
+  "type": "laravel",
+  "requires": {
+    "os": ["windows", "linux"],
+    "php": ">=8.1",
+    "php_extensions": ["json", "openssl", "mbstring", "fileinfo", "zip", "pdo", "pdo_mysql"],
+    "mysql": ">=5.7",
+    "node": "not-required-assets-built",
+    "composer": "not-required-vendor-bundled",
+    "apps": {
+      "pbb-maestro": "optional-for-telemetry"
+    }
+  },
+  "installer": {
+    "interactive": "public/installer/index.php",
+    "unattended": "installer/install-run.php",
+    "status": "installer/status.php",
+    "schema": "installer/schema/install.schema.json",
+    "tools": {
+      "populate_initial_data": {
+        "path": "tools/populate-initial-data.php",
+        "description": "Populate Realtime clients, project scopes, policies, media/query settings, and backend ingress secrets.",
+        "config_section": "realtime.populate",
+        "required": false
+      }
+    }
+  },
+  "health": {
+    "http": "/api/health",
+    "ready": "/api/ready",
+    "metrics": "/api/metrics"
+  },
+  "services": [
+    {
+      "id": "pbb-realtime-websocket",
+      "name": "PBB Realtime WebSocket",
+      "kind": "daemon",
+      "command": "php artisan realtime:serve",
+      "required": true,
+      "healthcheck": "/api/metrics"
+    },
+    {
+      "id": "pbb-realtime-media-dispatcher",
+      "name": "PBB Realtime Media Dispatcher",
+      "kind": "worker",
+      "command": "php artisan realtime:dispatch",
+      "required": false,
+      "healthcheck": "maestro:realtime"
+    }
+  ],
+  "artifacts": {
+    "install_manifest": "storage/app/installer/install-manifest.json",
+    "install_report": "storage/app/installer/install-report.json",
+    "install_log": "storage/app/installer/install.log"
+  }
+}

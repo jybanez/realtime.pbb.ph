@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="smoke-csrf-token">
+  <title>Sandbox Shell Smoke</title>
+</head>
+<body data-status="pending">
+  <div
+    id="app"
+    data-page="/admin/sandbox"
+    data-app-name="PBB Realtime"
+    data-asset-version=""
+    data-flash-message="">
+  </div>
+  <pre id="results">Running...</pre>
+
+  <script>
+    const failures = [];
+    const results = document.getElementById("results");
+
+    const sandboxContext = {
+      status: true,
+      data: {
+        service_name: "PBB Realtime",
+        websocket_url: "ws://127.0.0.1:8080/realtime",
+        room_prefix: "chat.thread.",
+        capabilities: ["session.connect", "room.join", "presence.subscribe", "presence.publish", "chat.publish"],
+        clients: [
+          {
+            client_code: "clt_SMOKECLIENT01",
+            name: "Smoke Client",
+            status: "active",
+            issuer_identity: "smoke-auth@pbb.ph",
+            trusted_signing_profile: "smoke-signing",
+            token_issuance_mode: "app_backend_signed",
+            projects: [
+              {
+                project_code: "prj_SMOKEPROJECT01",
+                name: "Smoke Scope",
+                status: "active",
+                origin_policy_mode: "allowlist",
+                policy_profile_code: "pol_SMOKEPOLICY01",
+                policy_profile_name: "Smoke Policy",
+                allowed_origins: ["https://smoke.pbb.ph"]
+              }
+            ]
+          }
+        ]
+      }
+    };
+
+    const sandboxAdmission = {
+      status: true,
+      data: {
+        token: "smoke-token",
+        websocket_url: "ws://127.0.0.1:8080/realtime",
+        effective_room: "chat.thread.sandbox-room",
+        expires_at: "2026-03-30T12:30:00+08:00",
+        session: {
+          token_id: "sbx_smoke_token",
+          client_code: "clt_SMOKECLIENT01",
+          client_name: "Smoke Client",
+          project_code: "prj_SMOKEPROJECT01",
+          project_name: "Smoke Scope",
+          policy_profile_code: "pol_SMOKEPOLICY01",
+          policy_profile_name: "Smoke Policy",
+          user_id: "smoke-user",
+          display_name: "Smoke User",
+          capabilities: ["session.connect", "room.join", "presence.subscribe", "presence.publish", "chat.publish"]
+        }
+      }
+    };
+
+    window.fetch = async function (input, init = {}) {
+      const url = String(typeof input === "string" ? input : input.url || "");
+      const method = String(init.method || "GET").toUpperCase();
+
+      if (url.endsWith("/api/admin/bootstrap")) {
+        return jsonResponse({
+          app: { name: "PBB Realtime", surface: "admin" },
+          auth: {
+            authenticated: true,
+            account: {
+              id: 1,
+              name: "Smoke Operator",
+              email: "operator@pbb.ph",
+              is_operator: true,
+            },
+          },
+          security: { csrfToken: "smoke-csrf-token" },
+          settings: {
+            sessionLifetimeMinutes: 15,
+            keepaliveThresholdSeconds: 120,
+            heartbeatIntervalSeconds: 30,
+          },
+        });
+      }
+
+      if (url.endsWith("/api/admin/sandbox/context")) {
+        return jsonResponse(sandboxContext);
+      }
+
+      if (url.endsWith("/api/admin/sandbox/admission") && method === "POST") {
+        return jsonResponse(sandboxAdmission);
+      }
+
+      if (url.endsWith("/api/realtime/session") && method === "POST") {
+        return jsonResponse({
+          service: "PBB Realtime",
+          status: "accepted",
+          session: {
+            session_id: "sbx_smoke_token",
+            project_code: "prj_SMOKEPROJECT01",
+            app_code: "clt_SMOKECLIENT01",
+            user_id: "smoke-user",
+            capabilities: ["session.connect", "room.join", "presence.subscribe", "presence.publish", "chat.publish"],
+            allowed_rooms: ["chat.thread.sandbox-room"],
+            allowed_room_prefixes: [],
+            expires_at: "2026-03-30T12:30:00+08:00",
+          },
+        });
+      }
+
+      if (url.endsWith("/api/admin/session/ping")) {
+        return jsonResponse({
+          status: true,
+          data: {
+            csrfToken: "smoke-csrf-token",
+            touched_at: "2026-03-30T12:00:00+08:00",
+            session_lifetime_minutes: 15,
+          },
+        });
+      }
+
+      return jsonResponse({ message: `Unhandled fetch in smoke test: ${method} ${url}` }, 404);
+    };
+
+    class FakeWebSocket {
+      constructor(url) {
+        this.url = url;
+        this.readyState = 0;
+        setTimeout(() => {
+          this.readyState = 1;
+          this.onopen && this.onopen();
+          this.#emit({
+            namespace: "pbb.realtime.v1",
+            phase: "ack",
+            id: "session.open",
+            type: "session.auth.request",
+            room: null,
+            payload: {
+              session_id: "sbx_smoke_token",
+              project_code: "prj_SMOKEPROJECT01",
+              app_code: "clt_SMOKECLIENT01",
+              user_id: "smoke-user",
+              heartbeat_interval_seconds: 30,
+            },
+            meta: { service: "PBB Realtime" },
+          });
+        }, 30);
+      }
+
+      send(raw) {
+        const envelope = JSON.parse(raw);
+
+        if (envelope.type === "room.join.request") {
+          this.#emit({
+            namespace: "pbb.realtime.v1",
+            phase: "ack",
+            id: envelope.id,
+            type: envelope.type,
+            room: envelope.room,
+            payload: { joined: true, room: envelope.room },
+            meta: { service: "PBB Realtime" },
+          });
+          return;
+        }
+
+        if (envelope.type === "presence.publish") {
+          this.#emit({
+            namespace: "pbb.realtime.v1",
+            phase: "ack",
+            id: envelope.id,
+            type: envelope.type,
+            room: envelope.room,
+            payload: { published: true, room: envelope.room },
+            meta: { service: "PBB Realtime" },
+          });
+          this.#emit({
+            namespace: "pbb.realtime.v1",
+            phase: "event",
+            id: "evt_presence_001",
+            type: "presence.state.event",
+            room: envelope.room,
+            payload: {
+              state: "online",
+              status_text: "Sandbox active",
+              updated_at: new Date().toISOString(),
+            },
+            meta: { service: "PBB Realtime" },
+          });
+          return;
+        }
+
+        if (envelope.type === "chat.message.publish") {
+          this.#emit({
+            namespace: "pbb.realtime.v1",
+            phase: "ack",
+            id: envelope.id,
+            type: envelope.type,
+            room: envelope.room,
+            payload: {
+              published: true,
+              message_id: "msg_smoke_001",
+            },
+            meta: { service: "PBB Realtime" },
+          });
+          this.#emit({
+            namespace: "pbb.realtime.v1",
+            phase: "event",
+            id: "evt_chat_001",
+            type: "chat.message.event",
+            room: envelope.room,
+            payload: {
+              message_id: "msg_smoke_001",
+              sender: {
+                user_id: "smoke-user",
+                display_name: "Smoke User",
+              },
+              text: envelope.payload.text,
+              attachments: envelope.payload.attachments || [],
+              sent_at: new Date().toISOString(),
+            },
+            meta: { service: "PBB Realtime" },
+          });
+        }
+      }
+
+      close() {
+        this.readyState = 3;
+        this.onclose && this.onclose();
+      }
+
+      #emit(payload) {
+        setTimeout(() => {
+          this.onmessage && this.onmessage({ data: JSON.stringify(payload) });
+        }, 30);
+      }
+    }
+
+    window.WebSocket = FakeWebSocket;
+
+    function jsonResponse(data, status = 200) {
+      return new Response(JSON.stringify(data), {
+        status,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+    }
+
+    function assert(condition, message) {
+      if (!condition) {
+        failures.push(message);
+      }
+    }
+
+    function finish() {
+      const passed = failures.length === 0;
+      document.body.dataset.status = passed ? "pass" : "fail";
+      results.textContent = `${passed ? "PASS" : "FAIL"}\n${passed ? "Sandbox shell smoke passed." : failures.join("\n")}`;
+    }
+
+    window.addEventListener("error", (event) => {
+      failures.push(event.message || "Unhandled runtime error.");
+    });
+
+    window.addEventListener("unhandledrejection", (event) => {
+      failures.push(String(event.reason || "Unhandled promise rejection."));
+    });
+
+    setTimeout(async () => {
+      try {
+        assert(document.body.textContent.includes("Realtime transport sandbox"), "sandbox page title should render");
+        assert(document.querySelector("#sandboxClientSelect option"), "client select should be populated");
+        assert(document.querySelector("#sandboxProjectSelect option"), "project select should be populated");
+        assert(document.querySelector(".ui-chat-thread"), "chat thread should mount");
+        assert(document.querySelector(".ui-chat-composer"), "chat composer should mount");
+
+        const connectButton = document.getElementById("sandboxPageConnectButton");
+        connectButton && connectButton.click();
+
+        await new Promise((resolve) => setTimeout(resolve, 700));
+
+        assert(document.body.textContent.includes("Connected"), "connection summary should update to connected");
+        assert(document.body.textContent.includes("Online"), "presence summary should update to online");
+        assert(document.getElementById("sandboxEventLog")?.textContent?.includes("session.issued"), "event log should record sandbox issuance");
+        assert(document.querySelector(".ui-chat-composer-send"), "composer send action should still exist after connect");
+      } catch (error) {
+        failures.push(error?.message || String(error));
+      }
+
+      finish();
+    }, 1200);
+  </script>
+
+  <script type="module" src="/js/app.js?v=smoke"></script>
+</body>
+</html>

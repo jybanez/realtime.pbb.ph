@@ -1,0 +1,105 @@
+:root {
+  color-scheme: dark;
+  --installer-bg: #0b1220;
+  --installer-panel: #10192b;
+  --installer-panel-soft: #152238;
+  --installer-border: #2a3754;
+  --installer-text: #e6ecff;
+  --installer-muted: #9bb0dc;
+  --installer-accent: #77b1ff;
+  --installer-pass: #62d39a;
+  --installer-fail: #ff8a8a;
+  --installer-shadow: 0 24px 64px rgba(0, 0, 0, 0.24);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  min-height: 100%;
+  margin: 0;
+  background: radial-gradient(circle at top, #12203a 0%, var(--installer-bg) 45%);
+  color: var(--installer-text);
+  font-family: Segoe UI, Inter, Arial, sans-serif;
+}
+
+body { padding: 20px; }
+
+.installer-shell { display: grid; gap: 20px; max-width: 1440px; margin: 0 auto; }
+.installer-hero, .installer-panel {
+  border: 1px solid var(--installer-border);
+  border-radius: 20px;
+  background: rgba(16, 25, 43, 0.92);
+  box-shadow: var(--installer-shadow);
+}
+.installer-hero { display: grid; gap: 16px; padding: 24px; }
+.installer-eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--installer-accent); }
+.installer-hero-row { display: flex; justify-content: space-between; gap: 16px; align-items: start; }
+.installer-title { margin: 0; font-size: clamp(36px, 5vw, 56px); line-height: .96; }
+.installer-subtitle { margin: 0; max-width: 860px; color: var(--installer-muted); font-size: 19px; line-height: 1.7; }
+.installer-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.installer-summary-card { border: 1px solid var(--installer-border); border-radius: 16px; background: var(--installer-panel-soft); padding: 14px 16px; }
+.installer-summary-card strong { display: block; margin-bottom: 8px; font-size: 20px; }
+.installer-summary-card span { color: var(--installer-muted); font-size: 14px; }
+.installer-body { display: grid; grid-template-columns: 280px minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
+.installer-panel { padding: 20px; }
+.installer-panel-title { margin: 0 0 6px; font-size: 28px; }
+.installer-panel-copy { margin: 0 0 16px; color: var(--installer-muted); line-height: 1.6; }
+.installer-step-list { display: grid; gap: 10px; }
+.installer-step-button {
+  width: 100%; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--installer-border);
+  background: var(--installer-panel-soft); color: var(--installer-text); text-align: left; cursor: pointer;
+}
+.installer-step-button.is-active { border-color: var(--installer-accent); background: #1a2945; }
+.installer-step-button small { display: block; margin-top: 8px; color: var(--installer-muted); }
+.installer-step-button:disabled, .installer-button:disabled { opacity: .6; cursor: default; }
+.installer-form-grid { display: grid; gap: 14px; }
+.installer-field { display: grid; gap: 8px; }
+.installer-field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.installer-field label { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--installer-accent); }
+.installer-field input, .installer-field select, .installer-field textarea {
+  width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--installer-border);
+  background: #09111e; color: var(--installer-text); outline: none;
+}
+.installer-field textarea { min-height: 110px; resize: vertical; }
+.installer-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+.installer-button { padding: 11px 16px; border-radius: 12px; border: 1px solid #4d6ea5; background: #16305b; color: #f5f8ff; cursor: pointer; }
+.installer-button.is-secondary { border-color: var(--installer-border); background: transparent; }
+.installer-check-list, .installer-report-list { display: grid; gap: 10px; }
+.installer-check-row, .installer-report-card, .installer-log {
+  border: 1px solid var(--installer-border); border-radius: 14px; background: var(--installer-panel-soft);
+}
+.installer-check-row { display: grid; gap: 6px; padding: 14px 16px; }
+.installer-check-row.is-pass { border-color: rgba(98, 211, 154, .4); }
+.installer-check-row.is-fail { border-color: rgba(255, 138, 138, .35); }
+.installer-check-row.is-warn { border-color: rgba(255, 210, 120, .35); }
+.installer-check-head, .installer-report-head { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+.installer-check-status { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.installer-check-row.is-pass .installer-check-status { color: var(--installer-pass); }
+.installer-check-row.is-fail .installer-check-status { color: var(--installer-fail); }
+.installer-check-row.is-warn .installer-check-status { color: #ffd278; }
+.installer-check-message, .installer-report-copy, .installer-help { color: var(--installer-muted); }
+.installer-acceptance-list { margin: 8px 0 0; padding-left: 18px; color: var(--installer-muted); }
+.installer-acceptance-list li { margin: 0 0 6px; }
+.installer-log {
+  padding: 14px 16px; min-height: 180px; white-space: pre-wrap; overflow: auto; font-family: Consolas, monospace; font-size: 13px;
+}
+.installer-code {
+  border: 1px solid var(--installer-border); border-radius: 14px; background: #09111e;
+  padding: 16px; font-family: Consolas, monospace; font-size: 13px; white-space: pre-wrap; overflow: auto;
+}
+.installer-aside-section { display: grid; gap: 12px; }
+.installer-aside-block { border: 1px solid var(--installer-border); border-radius: 14px; background: var(--installer-panel-soft); padding: 14px 16px; }
+.installer-aside-block h3 { margin: 0 0 10px; font-size: 18px; }
+.installer-aside-block p, .installer-aside-block li { color: var(--installer-muted); line-height: 1.6; }
+.installer-aside-block ul { margin: 0; padding-left: 18px; }
+
+@media (max-width: 1200px) {
+  .installer-body { grid-template-columns: 1fr; }
+  .installer-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  body { padding: 12px; }
+  .installer-hero-row { flex-direction: column; }
+  .installer-summary, .installer-field-row { grid-template-columns: 1fr; }
+}

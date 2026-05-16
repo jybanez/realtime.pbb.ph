@@ -1,0 +1,16 @@
+[Unit]
+Description={{SERVICE_NAME}} Ratchet WebSocket Runtime
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory={{INSTALL_PATH}}
+Environment=RATCHET_DISABLE_XDEBUG_WARN=1
+ExecStart={{PHP_BINARY}} artisan realtime:serve
+Restart=always
+RestartSec=5
+StandardOutput=append:{{LOG_PATH}}
+StandardError=append:{{LOG_PATH}}
+
+[Install]
+WantedBy=multi-user.target

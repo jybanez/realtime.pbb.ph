@@ -1,0 +1,132 @@
+openapi: 3.0.3
+info:
+  title: PBB Realtime API
+  version: 0.1.0
+  description: Realtime gateway and private admin surface API baseline.
+servers:
+  - url: https://realtime.pbb.ph
+paths:
+  /api/v1/events/publish:
+    post:
+      summary: Queue a trusted backend-owned event for room fanout through Realtime.
+      security:
+        - RealtimeBackendSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - client_code
+                - project_code
+                - room
+                - event_type
+                - payload
+              properties:
+                client_code:
+                  type: string
+                project_code:
+                  type: string
+                room:
+                  type: string
+                event_type:
+                  type: string
+                payload:
+                  type: object
+                  additionalProperties: true
+                meta:
+                  type: object
+                  additionalProperties: true
+                event_id:
+                  type: string
+      responses:
+        '202':
+          description: Publish accepted and queued for dispatch
+        '401':
+          description: Invalid backend secret
+        '403':
+          description: Scope or room not allowed
+        '422':
+          description: Invalid request or payload too large
+        '429':
+          description: Publish rate limit exceeded
+  /api/admin/bootstrap:
+    get:
+      summary: Return authenticated admin shell bootstrap data.
+      responses:
+        '200':
+          description: Bootstrap payload
+  /api/admin/csrf-token:
+    get:
+      summary: Return a CSRF token for browser session flows.
+      responses:
+        '200':
+          description: CSRF payload
+  /api/admin/session/ping:
+    get:
+      summary: Session keepalive endpoint.
+      responses:
+        '200':
+          description: Session still active
+        '401':
+          description: Session expired
+  /api/admin/me:
+    get:
+      summary: Return the current operator account.
+      responses:
+        '200':
+          description: Current user payload
+    patch:
+      summary: Update the current operator account.
+      responses:
+        '200':
+          description: Updated account payload
+  /api/admin/me/password:
+    post:
+      summary: Update the current operator password.
+      responses:
+        '200':
+          description: Password updated
+  /api/admin/dashboard:
+    get:
+      summary: Return dashboard summary data for the admin browser shell.
+      responses:
+        '200':
+          description: Dashboard data
+  /api/admin/clients:
+    get:
+      summary: Return paginated client data for the admin browser shell.
+      responses:
+        '200':
+          description: Client list data
+  /api/admin/policies:
+    get:
+      summary: Return paginated policy data for the admin browser shell.
+      responses:
+        '200':
+          description: Policy list data
+  /api/admin/sessions:
+    get:
+      summary: Return paginated session data for the admin browser shell.
+      responses:
+        '200':
+          description: Session list data
+  /api/admin/audit:
+    get:
+      summary: Return paginated audit data for the admin browser shell.
+      responses:
+        '200':
+          description: Audit list data
+  /api/admin/operations:
+    get:
+      summary: Return operations summary data for the admin browser shell.
+      responses:
+        '200':
+          description: Operations data
+components:
+  securitySchemes:
+    RealtimeBackendSecret:
+      type: apiKey
+      in: header
+      name: X-Realtime-Backend-Secret

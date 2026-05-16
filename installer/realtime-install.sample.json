@@ -1,0 +1,46 @@
+{
+  "mode": "fresh",
+  "app": {
+    "install_path": "C:\\wamp64\\www\\pbb\\realtime",
+    "app_url": "https://realtime.hub-a.pbb.ph",
+    "app_env": "production",
+    "app_debug": false
+  },
+  "database": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "database": "pbb_realtime",
+    "username": "pbb_realtime",
+    "password": "replace-with-real-password"
+  },
+  "realtime": {
+    "service_name": "PBB Realtime Hub A",
+    "token_audience": "pbb-realtime",
+    "token_signing_secret": "replace-with-real-secret",
+    "trusted_issuers": [
+      "hub-a.pbb.ph"
+    ],
+    "public_websocket_url": "wss://realtime.hub-a.pbb.ph/realtime",
+    "ws_bind_address": "127.0.0.1",
+    "ws_port": 8080,
+    "allowed_origins": [
+      "https://hq.pbb.ph",
+      "https://workspace.pbb.ph"
+    ]
+  },
+  "admin": {
+    "strategy": "create_if_missing",
+    "name": "PBB Administrator",
+    "email": "admin@pbb.local",
+    "password": "replace-with-strong-admin-password-123",
+    "must_change_password": false,
+    "overwrite_existing": false
+  },
+  "service": {
+    "target_os": "windows",
+    "service_manager": "windows-service",
+    "startup_mode": "automatic",
+    "registration_mode": "template",
+    "allow_existing_install": false
+  }
+}

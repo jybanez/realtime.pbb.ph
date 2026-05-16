@@ -1,0 +1,61 @@
+<?php
+
+return [
+    'service_name' => env('REALTIME_SERVICE_NAME', env('APP_NAME', 'PBB Realtime')),
+    'token_audience' => env('REALTIME_TOKEN_AUDIENCE', 'pbb-realtime'),
+    'token_signing_secret' => env('REALTIME_TOKEN_SIGNING_SECRET', ''),
+    'trusted_issuers' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('REALTIME_TRUSTED_ISSUERS', ''))
+    ))),
+    'public_websocket_url' => env('REALTIME_PUBLIC_WEBSOCKET_URL'),
+    'ws_host' => env('REALTIME_WS_HOST', '127.0.0.1'),
+    'ws_public_host' => env('REALTIME_WS_PUBLIC_HOST', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST) ?: 'localhost'),
+    'ws_bind_address' => env('REALTIME_WS_BIND_ADDRESS', '127.0.0.1'),
+    'ws_port' => (int) env('REALTIME_WS_PORT', 8080),
+    'allowed_origins' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('REALTIME_ALLOWED_ORIGINS', ''))
+    ))),
+    'message_rate_limit_per_minute' => (int) env('REALTIME_MESSAGE_RATE_LIMIT_PER_MINUTE', 120),
+    'room_join_rate_limit_per_minute' => (int) env('REALTIME_ROOM_JOIN_RATE_LIMIT_PER_MINUTE', 30),
+    'event_publish_rate_limit_per_minute' => (int) env('REALTIME_EVENT_PUBLISH_RATE_LIMIT_PER_MINUTE', 60),
+    'event_publish_payload_max_bytes' => (int) env('REALTIME_EVENT_PUBLISH_PAYLOAD_MAX_BYTES', 32 * 1024),
+    'event_publish_trace_enabled' => filter_var(env('REALTIME_EVENT_PUBLISH_TRACE', false), FILTER_VALIDATE_BOOL),
+    'event_publish_drain_interval_seconds' => (int) env('REALTIME_EVENT_PUBLISH_DRAIN_INTERVAL_SECONDS', 1),
+    'event_publish_drain_batch_size' => (int) env('REALTIME_EVENT_PUBLISH_DRAIN_BATCH_SIZE', 100),
+    'embedded_media_chunk_dispatch_enabled' => filter_var(env('REALTIME_EMBEDDED_MEDIA_CHUNK_DISPATCH_ENABLED', true), FILTER_VALIDATE_BOOL),
+    'media_chunk_dispatch_batch_size' => (int) env('REALTIME_MEDIA_CHUNK_DISPATCH_BATCH_SIZE', 25),
+    'media_chunk_dispatch_claim_timeout_seconds' => max(30, (int) env('REALTIME_MEDIA_CHUNK_DISPATCH_CLAIM_TIMEOUT_SECONDS', 300)),
+    'media_chunk_spool_path' => env('REALTIME_MEDIA_CHUNK_SPOOL_PATH', storage_path('app/realtime-media-chunks')),
+    'media_chunk_binary_prepare_ttl_seconds' => max(5, (int) env('REALTIME_MEDIA_CHUNK_BINARY_PREPARE_TTL_SECONDS', 30)),
+    'media_chunk_binary_max_bytes' => max(1, (int) env('REALTIME_MEDIA_CHUNK_BINARY_MAX_BYTES', 2 * 1024 * 1024)),
+    'backend_ingress_secret_pepper' => (string) env('REALTIME_BACKEND_INGRESS_SECRET_PEPPER', env('APP_KEY', '')),
+    'max_rooms_per_session' => (int) env('REALTIME_MAX_ROOMS_PER_SESSION', 50),
+    'sandbox_attachment_transport' => [
+        'max_attachment_count' => (int) env('REALTIME_SANDBOX_MAX_ATTACHMENT_COUNT', 6),
+        'max_attachment_bytes' => (int) env('REALTIME_SANDBOX_MAX_ATTACHMENT_BYTES', 2 * 1024 * 1024),
+        'max_total_bytes_per_message' => (int) env('REALTIME_SANDBOX_MAX_TOTAL_ATTACHMENT_BYTES', 6 * 1024 * 1024),
+        'chunk_events_per_minute' => (int) env('REALTIME_SANDBOX_ATTACHMENT_CHUNK_EVENTS_PER_MINUTE', 480),
+        'chunk_bytes_per_minute' => (int) env('REALTIME_SANDBOX_ATTACHMENT_CHUNK_BYTES_PER_MINUTE', 12 * 1024 * 1024),
+    ],
+    'usage_telemetry_retention_days' => (int) env('REALTIME_USAGE_TELEMETRY_RETENTION_DAYS', 90),
+    'token_ttl_minutes' => (int) env('REALTIME_TOKEN_TTL_MINUTES', 15),
+    'heartbeat_interval_seconds' => (int) env('REALTIME_HEARTBEAT_INTERVAL_SECONDS', 30),
+    'presence_stale_seconds' => (int) env('REALTIME_PRESENCE_STALE_SECONDS', 90),
+
+    'maestro_telemetry' => [
+        'enabled' => filter_var(env('MAESTRO_TELEMETRY_ENABLED', false), FILTER_VALIDATE_BOOL),
+        'base_url' => trim((string) env('MAESTRO_BASE_URL', '')),
+        'local_bypass_enabled' => filter_var(env('MAESTRO_TELEMETRY_LOCAL_BYPASS_ENABLED', false), FILTER_VALIDATE_BOOL),
+        'local_bypass_base_url' => trim((string) env('MAESTRO_TELEMETRY_LOCAL_BYPASS_BASE_URL', 'http://127.0.0.1')),
+        'local_bypass_host' => trim((string) env('MAESTRO_TELEMETRY_LOCAL_BYPASS_HOST', 'maestro.pbb.ph')),
+        'token' => trim((string) env('MAESTRO_TELEMETRY_TOKEN', '')),
+        'token_header' => trim((string) env('MAESTRO_TELEMETRY_TOKEN_HEADER', 'X-Telemetry-Token')),
+        'app_code' => trim((string) env('MAESTRO_TELEMETRY_APP_CODE', 'realtime')),
+        'heartbeat_seconds' => max(5, (int) env('MAESTRO_TELEMETRY_HEARTBEAT_SECONDS', 15)),
+        'connect_timeout_seconds' => max(1, (int) env('MAESTRO_TELEMETRY_CONNECT_TIMEOUT_SECONDS', 3)),
+        'timeout_seconds' => max(1, (int) env('MAESTRO_TELEMETRY_TIMEOUT_SECONDS', 5)),
+        'verify_tls' => filter_var(env('MAESTRO_TELEMETRY_VERIFY_TLS', true), FILTER_VALIDATE_BOOL),
+    ],
+];

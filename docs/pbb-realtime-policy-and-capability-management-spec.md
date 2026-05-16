@@ -1,0 +1,290 @@
+# PBB Realtime Policy And Capability Management Spec
+
+## Purpose
+
+Define the V1 policy and capability model for the private `PBB Realtime` admin surface.
+
+This spec describes how operators define what a client-owned policy allows once it is registered.
+
+It is intentionally separate from:
+
+- client registration
+- websocket transport semantics
+- room/presence state
+- session and audit visibility
+- operations controls
+
+## Scope
+
+The policy surface should manage:
+
+- capability profiles
+- room policy profiles
+- session/connect limits
+- rate limits
+- allow/deny policy references
+- optional policy templates
+
+The policy surface should not manage:
+
+- raw signing keys
+- app-local business authorization
+- consumer frontend logic
+- websocket message payload definitions
+- presence state rules
+
+## Core Concept
+
+`PBB Realtime` policy records describe the rules that a client owns and applies to its own project scopes in order to use the gateway safely.
+
+The policy surface answers:
+
+- what capabilities may this client's project scopes request
+- which room prefixes or room categories may this client's project scopes use
+- how many sessions or connections may this client's scopes open
+- what rate limits apply
+- whether the client's scopes are allowed, restricted, or quarantined
+
+## Ownership Boundary
+
+Each policy belongs to exactly one client.
+
+Policies are not shared across clients.
+
+If two clients need the same effective policy settings, they should still have separate policy records owned by each client individually.
+
+Project scopes may only reference policies owned by the same client.
+
+## Recommended Policy Objects
+
+### Capability Profile
+
+A capability profile should group allowed realtime behaviors such as:
+
+- chat publish
+- chat subscribe
+- presence publish
+- presence subscribe
+- signaling publish
+- signaling subscribe
+- session connect
+
+### Room Policy Profile
+
+A room policy profile should define:
+
+- allowed room prefixes
+- room boundary scopes
+- deny rules
+- optional reserved prefixes
+
+### Rate Limit Profile
+
+A rate limit profile should define:
+
+- token/auth attempt limits
+- room-join limits
+- publish limits
+- abuse response thresholds
+
+### Session Limit Profile
+
+A session limit profile should define:
+
+- per-client concurrent session cap
+- per-user concurrent session cap where needed
+- per-project or per-app safety limits
+
+## Policy Semantics
+
+### Capability Profiles
+
+Capabilities should be expressed as explicit allowlists.
+
+Recommended V1 approach:
+
+- a client is only allowed to perform behaviors that are explicitly enabled
+- absence of a capability means denial
+- default-allow behavior should not be assumed
+
+### Room Policy Profiles
+
+Room policy should be based on explicit prefixes or categories.
+
+Recommended V1 approach:
+
+- room access is granted by policy references and room authorization logic together
+- client policy should never override room boundary rules defined in the room spec
+- reserved prefixes should remain centrally governed
+
+### Rate Limiting
+
+Rate limits should be enforceable at the admin policy level and visible in audit/monitoring.
+
+Recommended V1 controls:
+
+- per-app auth attempt limits
+- per-app publish limits
+- per-room join limits
+- per-user connection limits where relevant
+
+### Session Limits
+
+Session limits should be used to prevent runaway realtime usage.
+
+They should support:
+
+- concurrent session caps
+- connection burst protection
+- quarantine-style enforcement when abuse is detected
+
+## Recommended V1 Fields
+
+### Policy Identity
+
+Required:
+
+- `policy_code`
+- `name`
+- `status`
+
+Required:
+
+- `client_id`
+
+Recommended:
+
+- `description`
+- `policy_category`
+- legacy stewardship notes only if needed
+
+### Policy Content
+
+Recommended:
+
+- `capability_profile`
+- `room_policy_profile`
+- `rate_limit_profile`
+- `session_limit_profile`
+- `allow_deny_mode`
+
+### Policy Lifecycle
+
+Recommended statuses:
+
+- `active`
+- `inactive`
+- `draft`
+- `deprecated`
+
+## Minimal Operator-Facing Form
+
+The create/edit surface should only require:
+
+- `client`
+- `name`
+- `status`
+- `allow_deny_mode`
+
+Everything else should be treated as advanced policy content, template data, or hidden metadata for the current transition.
+
+## Policy Lifecycle
+
+### Draft
+
+Operators may create and review a policy in draft before attaching it to one of the owning client's live project scopes.
+
+### Activate
+
+A policy becomes active when it is approved for use by one or more project scopes owned by the same client.
+
+### Update
+
+Policy updates should be reviewed carefully because they can change production access rules.
+
+### Deprecate
+
+A policy may be deprecated when a newer policy supersedes it.
+
+### Retire
+
+A retired policy should no longer be assigned to active clients.
+
+## Validation Rules
+
+The policy surface should enforce:
+
+- unique policy codes generated by the system
+- required names and statuses
+- valid capability names
+- valid room prefix definitions
+- sane rate-limit values
+- sane session limits
+- references only to existing policy records owned by the same client when policies are selected by project scopes
+
+## Access Rules
+
+The policy surface should only be available to authorized `PBB Realtime` operators/admins.
+
+Recommended access model:
+
+- session-authenticated browser access
+- role or capability checks
+- audit logging for all create/update/activate/deprecate actions
+
+## UI Expectations
+
+The V1 policy UI should support:
+
+- policy detail view
+- create policy form from the client detail page
+- edit policy form from the client detail page
+- activation and deprecation actions
+- project-scope reference visibility
+
+The default create/edit forms should not ask operators to type codes or full structured policy payloads during onboarding.
+
+The UI should make the impact of each policy obvious.
+
+The policy management surface should primarily live inside the client detail page beside trust notes and project scopes.
+
+## Audit Expectations
+
+Each policy change should be audited with:
+
+- actor identity
+- action type
+- policy code
+- owning client reference
+- affected project-scope references
+- timestamp
+- before/after summary
+- reason when provided
+
+## Dependencies
+
+This spec depends on:
+
+- `docs/pbb-realtime-admin-surface-proposal.md`
+- `docs/pbb-realtime-client-management-spec.md`
+- `docs/pbb-realtime-proposal.md`
+- `docs/pbb-realtime-token-and-auth-spec.md`
+- `docs/pbb-realtime-room-and-presence-spec.md`
+
+## Exit Criteria
+
+The policy and capability spec is ready for implementation when:
+
+- capability names are agreed
+- room-policy shape is agreed
+- rate-limit categories are agreed
+- session-limit categories are agreed
+- admin access rules are agreed
+- audit requirements are agreed
+
+## Bottom Line
+
+The policy surface is where `PBB Realtime` becomes enforceable.
+
+Keep the policy model explicit, reference-based, and auditable.
+Do not mix policy definitions with client identity records or raw secrets.
