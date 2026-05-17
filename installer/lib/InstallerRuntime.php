@@ -28,6 +28,31 @@ final class InstallerRuntime
         }
     }
 
+    public static function ensureRuntimeDirectories(): void
+    {
+        $root = self::rootPath();
+        $directories = [
+            'storage',
+            'storage' . DIRECTORY_SEPARATOR . 'app',
+            'storage' . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'public',
+            'storage' . DIRECTORY_SEPARATOR . 'framework',
+            'storage' . DIRECTORY_SEPARATOR . 'framework' . DIRECTORY_SEPARATOR . 'cache',
+            'storage' . DIRECTORY_SEPARATOR . 'framework' . DIRECTORY_SEPARATOR . 'cache' . DIRECTORY_SEPARATOR . 'data',
+            'storage' . DIRECTORY_SEPARATOR . 'framework' . DIRECTORY_SEPARATOR . 'sessions',
+            'storage' . DIRECTORY_SEPARATOR . 'framework' . DIRECTORY_SEPARATOR . 'testing',
+            'storage' . DIRECTORY_SEPARATOR . 'framework' . DIRECTORY_SEPARATOR . 'views',
+            'storage' . DIRECTORY_SEPARATOR . 'logs',
+            'bootstrap' . DIRECTORY_SEPARATOR . 'cache',
+        ];
+
+        foreach ($directories as $directory) {
+            $path = $root . DIRECTORY_SEPARATOR . $directory;
+            if (! is_dir($path)) {
+                @mkdir($path, 0775, true);
+            }
+        }
+    }
+
     public static function statePath(): string
     {
         return self::storageDir() . DIRECTORY_SEPARATOR . self::STATE_FILE;
@@ -375,6 +400,8 @@ final class InstallerRuntime
 
     public static function buildPreflightChecks(array $config): array
     {
+        self::ensureRuntimeDirectories();
+
         $requiredExtensions = ['openssl', 'pdo', 'pdo_mysql', 'mbstring', 'json', 'fileinfo'];
         $root = self::rootPath();
         $storage = $root . DIRECTORY_SEPARATOR . 'storage';
@@ -1401,6 +1428,8 @@ PHP;
 
     public static function buildStatus(array $config = []): array
     {
+        self::ensureRuntimeDirectories();
+
         $state = self::loadState();
         $manifest = self::loadManifest();
         $report = self::loadReport();
