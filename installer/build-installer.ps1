@@ -203,6 +203,9 @@ if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
     exit(1);
 }
 
+$added = [];
+$checksums = [];
+
 foreach ($sources as $entry) {
     $source = $entry['Source'];
     $target = str_replace('\\', '/', $entry['Target']);
@@ -212,13 +215,24 @@ foreach ($sources as $entry) {
             continue;
         }
         if ($target === 'release.json') {
-            $zip->addFromString($target, $releaseJson);
+            if (! isset($added[$target])) {
+                $zip->addFromString($target, $releaseJson);
+                $checksums[$target] = hash('sha256', $releaseJson);
+                $added[$target] = true;
+            }
+            continue;
+        }
+        if ($target === 'checksums.sha256') {
             continue;
         }
         if (! should_include_path($target, $helperRuntimeAllowList, $helperRuntimeAllowGlobs)) {
             continue;
         }
-        $zip->addFile($source, $target);
+        if (! isset($added[$target])) {
+            $zip->addFile($source, $target);
+            $checksums[$target] = hash_file('sha256', $source);
+            $added[$target] = true;
+        }
         continue;
     }
 
@@ -238,15 +252,33 @@ foreach ($sources as $entry) {
             continue;
         }
         if ($zipTarget === 'release.json') {
-            $zip->addFromString($zipTarget, $releaseJson);
+            if (! isset($added[$zipTarget])) {
+                $zip->addFromString($zipTarget, $releaseJson);
+                $checksums[$zipTarget] = hash('sha256', $releaseJson);
+                $added[$zipTarget] = true;
+            }
+            continue;
+        }
+        if ($zipTarget === 'checksums.sha256') {
             continue;
         }
         if (! should_include_path($zipTarget, $helperRuntimeAllowList, $helperRuntimeAllowGlobs)) {
             continue;
         }
-        $zip->addFile($absolutePath, $zipTarget);
+        if (! isset($added[$zipTarget])) {
+            $zip->addFile($absolutePath, $zipTarget);
+            $checksums[$zipTarget] = hash_file('sha256', $absolutePath);
+            $added[$zipTarget] = true;
+        }
     }
 }
+
+ksort($checksums, SORT_STRING);
+$checksumLines = [];
+foreach ($checksums as $path => $hash) {
+    $checksumLines[] = $hash . '  ' . $path;
+}
+$zip->addFromString('checksums.sha256', implode("\n", $checksumLines) . "\n");
 
 $zip->close();
 echo $zipPath;
