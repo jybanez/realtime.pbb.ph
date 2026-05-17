@@ -45,7 +45,7 @@ Successful acceptance runs remove extracted `acceptance-*` folders automatically
 
 Installer ZIP builds intentionally package only the production Helper runtime from `public/vendor/helpers.pbb.ph`: the rebuilt `dist` bundle, `js/ui/ui.loader.js`, `js/vendor/marked.esm.js`, direct CSS dependencies, and `boot.*.json` metadata. Helper demos, docs, samples, tests, scripts, `.git`, `node_modules`, and other non-runtime files are excluded from release packages.
 
-Installer ZIP builds also exclude local package-builder and acceptance tooling such as `installer/build-installer.ps1`, `installer/test-installer-bundle.ps1`, public test pages, CI scaffolding, and repository tests. The generated ZIP keeps Kit-facing installer docs and runtime files, and its bundled `release.json` is stamped with build metadata using the `v{milestone}-{version}` display version convention.
+Installer ZIP builds also exclude local package-builder and acceptance tooling such as `installer/build-installer.ps1`, `installer/test-installer-bundle.ps1`, public test/demo pages, CI scaffolding, repository tests, database factories, and database seeders. The generated ZIP keeps Kit-facing installer docs and runtime files, and its bundled `release.json` is stamped with build metadata using the `v{milestone}-{version}` display version convention. Optional data loading should use the declared `populate_initial_data` tool under `release.json` for Kit Data Prep, not Laravel database seeders.
 
 Optional initial data can be populated after install with:
 

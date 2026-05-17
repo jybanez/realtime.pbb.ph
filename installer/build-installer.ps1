@@ -83,6 +83,11 @@ $BundleExcludeGlobs = @(
     "installer/test-installer-bundle.ps1",
     ".github/*",
     "tests/*",
+    "database/factories/*",
+    "database/seeders/*",
+    "public/sdk-demo/*",
+    "public/sdk-demo-attachments/*",
+    "public/sdk-demo-conference/*",
     "public/tests/*"
 )
 
@@ -179,7 +184,12 @@ function should_exclude_path(string $targetPath, array $bundleExcludeGlobs): boo
     $path = str_replace('\\', '/', $targetPath);
 
     foreach ($bundleExcludeGlobs as $glob) {
-        if (preg_match(glob_to_regex(str_replace('\\', '/', $glob)), $path) === 1) {
+        $glob = str_replace('\\', '/', $glob);
+        if (str_ends_with($glob, '/*') && str_starts_with($path, substr($glob, 0, -1))) {
+            return true;
+        }
+
+        if (preg_match(glob_to_regex($glob), $path) === 1) {
             return true;
         }
     }

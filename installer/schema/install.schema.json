@@ -34,8 +34,14 @@
         "app_url": { "type": "string", "format": "uri" },
         "app_env": { "type": "string" },
         "app_debug": { "type": "boolean" },
-        "run_seeders": { "type": "boolean" },
-        "seed_command": { "type": "string" }
+        "run_seeders": {
+          "type": "boolean",
+          "description": "Deprecated for Kit bundles. Database seeders are source-only; use installer.tools.populate_initial_data for Data Prep."
+        },
+        "seed_command": {
+          "type": "string",
+          "description": "Deprecated for Kit bundles. Database seeders are source-only; use installer.tools.populate_initial_data for Data Prep."
+        }
       }
     },
     "database": {
@@ -149,7 +155,10 @@
       "additionalProperties": true,
       "properties": {
         "run_migrations": { "type": "boolean" },
-        "seed_initial_data": { "type": "boolean" },
+        "seed_initial_data": {
+          "type": "boolean",
+          "description": "Deprecated for core install. Kit Setup handles optional data preparation through release.json installer.tools."
+        },
         "write_env": { "type": "boolean" },
         "cache_config": { "type": "boolean" },
         "validate_after_install": { "type": "boolean" }

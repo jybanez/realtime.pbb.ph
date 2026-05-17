@@ -391,8 +391,6 @@ try {
             app_url = $AppBaseUrl
             app_env = "local"
             app_debug = $true
-            run_seeders = $true
-            seed_command = "db:seed --force"
         }
         database = @{
             host = $envValues["DB_HOST"]
@@ -410,6 +408,61 @@ try {
             ws_bind_address = "127.0.0.1"
             ws_port = $WsPort
             allowed_origins = $AppBaseUrl
+            populate = @{
+                enabled = $true
+                options = @{
+                    overwrite_secrets = $false
+                }
+                clients = @(
+                    @{
+                        client_code = "clt_ACCEPTANCE"
+                        name = "PBB Realtime Acceptance"
+                        status = "active"
+                        description = "Acceptance fixture loaded through the Kit Data Prep population tool."
+                        integration_owner = "PBB Realtime"
+                        issuer_identity = "acceptance.local"
+                        token_issuance_mode = "app_backend_signed"
+                        trusted_signing_profile = "acceptance"
+                        allowed_origins = @($AppBaseUrl)
+                        origin_policy_mode = "allowlist"
+                        policies = @(
+                            @{
+                                policy_code = "pol_ACCEPTANCE_OPERATOR"
+                                name = "Acceptance Operator Policy"
+                                status = "active"
+                                policy_category = "acceptance"
+                                owner_team = "PBB Realtime"
+                                capability_profile = @{
+                                    rooms = @("join", "leave", "publish")
+                                    presence = @("publish", "subscribe")
+                                    chat = @("publish", "subscribe")
+                                    media = @("request", "stream")
+                                    call = @("signal")
+                                    events = @("publish")
+                                }
+                                room_policy_profile = @{
+                                    mode = "allowlist"
+                                    prefixes = @("installer-acceptance-")
+                                }
+                                allow_deny_mode = "allowlist"
+                            }
+                        )
+                        projects = @(
+                            @{
+                                project_code = "prj_ACCEPTANCE_OPERATOR"
+                                name = "Acceptance Operator"
+                                status = "active"
+                                description = "Acceptance websocket sandbox project."
+                                allowed_origins = @($AppBaseUrl)
+                                origin_policy_mode = "allowlist"
+                                policy_profile_code = "pol_ACCEPTANCE_OPERATOR"
+                                capability_profile_code = "acceptance-operator"
+                                room_policy_profile_code = "acceptance-rooms"
+                            }
+                        )
+                    }
+                )
+            }
         }
         admin = @{
             name = "Installer Acceptance Admin"
@@ -459,6 +512,21 @@ try {
         throw "Installer did not complete successfully. Raw response: $installRaw"
     }
     $Result.checks.install_completed = $true
+
+    Write-Host "[acceptance] populating sandbox fixture through Data Prep tool"
+    $populateConfigPath = Join-Path $ExtractRoot "storage\\app\\installer\\acceptance-populate.json"
+    $populateReportPath = Join-Path $ExtractRoot "storage\\app\\installer\\acceptance-populate-report.json"
+    [System.IO.File]::WriteAllText($populateConfigPath, ($InstallConfig | ConvertTo-Json -Depth 20), [System.Text.UTF8Encoding]::new($false))
+    Push-Location $ExtractRoot
+    try {
+        $populateOutput = & $PhpBin "tools\\populate-initial-data.php" --config $populateConfigPath --report $populateReportPath --mode initial 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            throw ("Population tool failed: " + ($populateOutput -join "`n"))
+        }
+    } finally {
+        Pop-Location
+    }
+    $Result.checks.populate_initial_data_completed = $true
 
     Write-Host "[acceptance] starting Laravel app server on $AppBaseUrl"
     $AppProcess = Start-Process -FilePath $PhpBin -ArgumentList @("artisan", "serve", "--host=127.0.0.1", "--port=$AppPort") -WorkingDirectory $ExtractRoot -PassThru -WindowStyle Hidden

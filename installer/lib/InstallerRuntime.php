@@ -312,7 +312,6 @@ final class InstallerRuntime
                 'app_env' => 'production',
                 'app_debug' => false,
                 'run_seeders' => false,
-                'seed_command' => 'db:seed --force',
             ],
             'database' => [
                 'host' => '127.0.0.1',
@@ -428,6 +427,8 @@ final class InstallerRuntime
         $template = self::configTemplate();
         $payload = self::normalizeKitConfig($payload);
         $normalized = array_replace_recursive($template, $payload);
+        $normalized['app']['run_seeders'] = false;
+        unset($normalized['app']['seed_command']);
 
         if (isset($normalized['realtime']['trusted_issuers']) && is_array($normalized['realtime']['trusted_issuers'])) {
             $normalized['realtime']['trusted_issuers'] = implode(',', array_filter(array_map('trim', $normalized['realtime']['trusted_issuers'])));
@@ -459,7 +460,7 @@ final class InstallerRuntime
 
         if (isset($payload['options']) && is_array($payload['options'])) {
             $payload['app'] = array_replace_recursive($payload['app'] ?? [], [
-                'run_seeders' => (bool) ($payload['options']['seed_initial_data'] ?? $payload['app']['run_seeders'] ?? false),
+                'run_seeders' => false,
             ]);
         }
 
@@ -558,8 +559,8 @@ final class InstallerRuntime
             $errors['admin.strategy'] = 'Admin strategy must be create_if_missing.';
         }
 
-        if (! empty($config['app']['run_seeders']) && trim((string) ($config['app']['seed_command'] ?? '')) === '') {
-            $errors['app.seed_command'] = 'Seeder command is required when optional seeders are enabled.';
+        if (! empty($config['app']['run_seeders'])) {
+            $errors['app.run_seeders'] = 'Database seeders are source-only and are not included in the Kit installer bundle. Use the declared populate_initial_data tool for Data Prep instead.';
         }
 
         return $errors;
@@ -849,28 +850,7 @@ final class InstallerRuntime
             return null;
         }
 
-        $command = trim((string) ($config['app']['seed_command'] ?? 'db:seed --force'));
-        if ($command === '') {
-            throw new RuntimeException('Optional seeding was enabled, but no seed command was provided.');
-        }
-
-        $arguments = preg_split('/\s+/', $command) ?: [];
-        $arguments = array_values(array_filter(array_map('trim', $arguments), static fn (string $part): bool => $part !== ''));
-        if ($arguments === []) {
-            throw new RuntimeException('Unable to normalize the optional seed command.');
-        }
-
-        $result = self::runArtisan($config, $arguments);
-        if (($result['exit_code'] ?? 1) !== 0) {
-            throw new RuntimeException('Optional seed/bootstrap actions failed: ' . trim((string) ($result['stderr'] ?: $result['stdout'])));
-        }
-
-        return [
-            'command' => $command,
-            'exit_code' => $result['exit_code'] ?? 0,
-            'stdout' => $result['stdout'] ?? '',
-            'stderr' => $result['stderr'] ?? '',
-        ];
+        throw new RuntimeException('Database seeders are not included in the Kit installer bundle. Use the declared populate_initial_data tool for Data Prep instead.');
     }
 
     public static function registerServiceRuntime(array $config, array $serviceArtifact): array
