@@ -56,6 +56,27 @@
     "ready": "/api/ready",
     "metrics": "/api/metrics"
   },
+  "web_server": {
+    "owner": "kit-setup",
+    "requirements": [
+      {
+        "id": "pbb-realtime-websocket-proxy",
+        "type": "websocket_proxy",
+        "server_path": "/realtime",
+        "path_prefix": "/realtime",
+        "upstream_url": "ws://127.0.0.1:8080/realtime",
+        "required_modules": ["proxy", "proxy_wstunnel"],
+        "headers": {
+          "Upgrade": "$http_upgrade",
+          "Connection": "upgrade"
+        },
+        "set_env": {},
+        "install_blocking": false,
+        "smoke_test_phase": "post-vhost",
+        "notes": "Kit Setup owns final Apache/Nginx include rendering, guarded apply, config test, and public websocket smoke test."
+      }
+    ]
+  },
   "services": [
     {
       "id": "pbb-realtime-websocket",

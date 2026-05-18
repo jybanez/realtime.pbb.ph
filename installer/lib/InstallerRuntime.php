@@ -1510,6 +1510,7 @@ PHP;
         $serviceArtifact = $details['service_artifact'] ?? self::renderServiceTemplate($config);
         $database = $config['database'] ?? [];
         $app = $config['app'] ?? [];
+        $webServer = self::webServerRequirements($config);
 
         return [
             'schema_version' => 1,
@@ -1531,6 +1532,8 @@ PHP;
                 'username' => (string) ($database['username'] ?? ''),
             ],
             'services' => self::serviceDefinitions($config, $serviceArtifact),
+            'web_server' => $webServer,
+            'web_server_requirements' => $webServer['requirements'],
             'health' => [
                 'last_checked_at' => $details['health_checked_at'] ?? null,
                 'status' => $details['health_status'] ?? 'unknown',
@@ -1544,6 +1547,7 @@ PHP;
         $validation = is_array($details['validation'] ?? null) ? $details['validation'] : [];
         $warnings = array_values($details['warnings'] ?? []);
         $errors = array_values($details['errors'] ?? []);
+        $webServer = self::webServerRequirements($config);
 
         foreach ($validation as $check) {
             if (($check['status'] ?? 'fail') !== 'pass' && ! (bool) ($check['blocking'] ?? true)) {
@@ -1572,6 +1576,8 @@ PHP;
                 'websocket' => (string) ($config['realtime']['public_websocket_url'] ?? ''),
             ],
             'services' => self::serviceDefinitions($config, $details['service_artifact'] ?? self::renderServiceTemplate($config)),
+            'web_server' => $webServer,
+            'web_server_requirements' => $webServer['requirements'],
             'warnings' => $warnings,
             'errors' => $errors,
             'artifacts' => [
@@ -1579,6 +1585,38 @@ PHP;
                 'install_report' => self::reportPath(),
                 'install_log' => self::logPath(),
             ],
+        ];
+    }
+
+    public static function webServerRequirements(array $config): array
+    {
+        $realtime = $config['realtime'] ?? [];
+        $bindAddress = trim((string) ($realtime['ws_bind_address'] ?? '127.0.0.1'));
+        $port = (int) ($realtime['ws_port'] ?? 8080);
+        $serverPath = '/realtime';
+        $upstreamHost = $bindAddress !== '' ? $bindAddress : '127.0.0.1';
+        $upstreamUrl = sprintf('ws://%s:%d%s', $upstreamHost, $port > 0 ? $port : 8080, $serverPath);
+
+        return [
+            'owner' => 'kit-setup',
+            'requirements' => [[
+                'id' => 'pbb-realtime-websocket-proxy',
+                'type' => 'websocket_proxy',
+                'server_path' => $serverPath,
+                'path_prefix' => $serverPath,
+                'upstream_url' => $upstreamUrl,
+                'public_url' => (string) ($realtime['public_websocket_url'] ?? ''),
+                'required_modules' => ['proxy', 'proxy_wstunnel'],
+                'headers' => [
+                    'Upgrade' => '$http_upgrade',
+                    'Connection' => 'upgrade',
+                ],
+                'set_env' => new stdClass(),
+                'install_blocking' => false,
+                'smoke_test_phase' => 'post-vhost',
+                'smoke_test_owner' => 'kit-setup',
+                'app_installer_validation' => 'local_service_readiness_only',
+            ]],
         ];
     }
 
