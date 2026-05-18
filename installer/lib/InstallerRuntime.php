@@ -1053,7 +1053,8 @@ final class InstallerRuntime
             $command,
             $descriptorSpec,
             $pipes,
-            dirname($artisan)
+            dirname($artisan),
+            self::artisanEnvironment()
         );
 
         if (! is_resource($process)) {
@@ -1081,6 +1082,42 @@ final class InstallerRuntime
             'stdout' => (string) $stdout,
             'stderr' => (string) $stderr,
         ];
+    }
+
+    private static function artisanEnvironment(): array
+    {
+        $environment = getenv();
+        if (! is_array($environment)) {
+            $environment = $_ENV;
+        }
+        $path = (string) (getenv('PATH') ?: getenv('Path') ?: '');
+        $clientBin = self::databaseClientBinPath();
+
+        if ($clientBin !== null && ! str_contains(strtolower($path), strtolower($clientBin))) {
+            $path = $clientBin . PATH_SEPARATOR . $path;
+        }
+
+        $environment['PATH'] = $path;
+        $environment['Path'] = $path;
+
+        return $environment;
+    }
+
+    private static function databaseClientBinPath(): ?string
+    {
+        $candidates = [
+            'C:\\wamp64\\bin\\mariadb\\mariadb11.2.2\\bin',
+            'C:\\wamp64\\bin\\mysql\\mysql8.2.0\\bin',
+            'C:\\wamp64\\bin\\mysql\\mysql5.7.44\\bin',
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate . DIRECTORY_SEPARATOR . 'mysql.exe')) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     public static function runMigrations(array $config): array
