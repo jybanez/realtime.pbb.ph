@@ -1099,12 +1099,13 @@ final class InstallerRuntime
 
     public static function recoverFreshInstallMigrationResidue(array $config): array
     {
-        if ((string) ($config['mode'] ?? 'fresh') !== 'fresh') {
-            return ['status' => 'skipped', 'reason' => 'not_fresh_mode'];
-        }
-
         if (self::loadManifest() !== [] || ! empty(self::loadCompletionMarker()['installed_at'])) {
             return ['status' => 'skipped', 'reason' => 'installed_marker_present'];
+        }
+
+        $mode = (string) ($config['mode'] ?? 'fresh');
+        if ($mode === 'upgrade') {
+            return ['status' => 'skipped', 'reason' => 'upgrade_mode'];
         }
 
         $database = $config['database'] ?? [];
