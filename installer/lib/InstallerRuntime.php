@@ -1130,8 +1130,27 @@ final class InstallerRuntime
         }
 
         $result['recovery'] = $recovery;
+        $result['schema_strategy'] = self::detectMigrationSchemaStrategy($result);
+        $result['baseline_schema'] = self::baselineSchemaRelativePath();
+        $result['baseline_schema_used'] = $result['schema_strategy'] === 'baseline_schema';
 
         return $result;
+    }
+
+    public static function baselineSchemaRelativePath(): string
+    {
+        return 'database/schema/mysql-schema.sql';
+    }
+
+    private static function detectMigrationSchemaStrategy(array $result): string
+    {
+        $output = (string) (($result['stdout'] ?? '') . "\n" . ($result['stderr'] ?? ''));
+
+        if (stripos($output, 'Loading stored database schemas') !== false) {
+            return 'baseline_schema';
+        }
+
+        return 'migrations';
     }
 
     public static function recoverFreshInstallMigrationResidue(array $config): array

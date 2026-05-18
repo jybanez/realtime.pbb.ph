@@ -199,6 +199,9 @@ try {
         'environment_path' => $envResult['path'],
         'environment_backup_path' => $envResult['backup_path'],
         'migration_exit_code' => $migrationResult['exit_code'] ?? 1,
+        'schema_strategy' => $migrationResult['schema_strategy'] ?? 'unknown',
+        'baseline_schema' => $migrationResult['baseline_schema'] ?? null,
+        'baseline_schema_used' => (bool) ($migrationResult['baseline_schema_used'] ?? false),
         'seed_command' => $seedResult['command'] ?? null,
         'bootstrap_admin_email' => $adminResult['email'] ?? null,
         'service_artifact_path' => $serviceArtifact['artifact_path'] ?? null,
@@ -231,6 +234,9 @@ try {
     $report['database'] = [
         'migrations_ran' => true,
         'migration_exit_code' => $migrationResult['exit_code'] ?? 1,
+        'schema_strategy' => $migrationResult['schema_strategy'] ?? 'unknown',
+        'baseline_schema' => $migrationResult['baseline_schema'] ?? null,
+        'baseline_schema_used' => (bool) ($migrationResult['baseline_schema_used'] ?? false),
         'seeders_ran' => $seedResult !== null,
         'seed_command' => $seedResult['command'] ?? null,
     ];

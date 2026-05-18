@@ -31,6 +31,12 @@
     "unattended": "installer/install-run.php",
     "status": "installer/status.php",
     "schema": "installer/schema/install.schema.json",
+    "database": {
+      "fresh_schema_strategy": "baseline_schema",
+      "baseline_schema": "database/schema/mysql-schema.sql",
+      "baseline_generated_from": "current release schema",
+      "historical_migrations": "retained for development and bounded upgrade/repair paths"
+    },
     "tools": {
       "populate_initial_data": {
         "path": "tools/populate-initial-data.php",
