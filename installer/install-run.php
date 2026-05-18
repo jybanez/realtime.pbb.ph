@@ -202,6 +202,7 @@ try {
         'schema_strategy' => $migrationResult['schema_strategy'] ?? 'unknown',
         'baseline_schema' => $migrationResult['baseline_schema'] ?? null,
         'baseline_schema_used' => (bool) ($migrationResult['baseline_schema_used'] ?? false),
+        'database_setup' => $migrationResult['database_setup'] ?? null,
         'seed_command' => $seedResult['command'] ?? null,
         'bootstrap_admin_email' => $adminResult['email'] ?? null,
         'service_artifact_path' => $serviceArtifact['artifact_path'] ?? null,
@@ -237,6 +238,7 @@ try {
         'schema_strategy' => $migrationResult['schema_strategy'] ?? 'unknown',
         'baseline_schema' => $migrationResult['baseline_schema'] ?? null,
         'baseline_schema_used' => (bool) ($migrationResult['baseline_schema_used'] ?? false),
+        'database_setup' => $migrationResult['database_setup'] ?? null,
         'seeders_ran' => $seedResult !== null,
         'seed_command' => $seedResult['command'] ?? null,
     ];

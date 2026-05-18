@@ -32,9 +32,14 @@
     "status": "installer/status.php",
     "schema": "installer/schema/install.schema.json",
     "database": {
-      "fresh_schema_strategy": "baseline_schema",
-      "baseline_schema": "database/schema/mysql-schema.sql",
-      "baseline_generated_from": "current release schema",
+      "fresh_install_strategy": "baseline_schema",
+      "baseline_schema": {
+        "path": "database/schema/mysql-schema.sql",
+        "engine": "mysql",
+        "generated_at": "2026-05-18T06:56:43.6536724Z",
+        "source": "current-release-schema"
+      },
+      "upgrade_strategy": "laravel_migrations",
       "historical_migrations": "retained for development and bounded upgrade/repair paths"
     },
     "tools": {

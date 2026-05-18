@@ -1133,6 +1133,15 @@ final class InstallerRuntime
         $result['schema_strategy'] = self::detectMigrationSchemaStrategy($result);
         $result['baseline_schema'] = self::baselineSchemaRelativePath();
         $result['baseline_schema_used'] = $result['schema_strategy'] === 'baseline_schema';
+        $result['migration_rows'] = self::countMigrationRows($config);
+        $result['upgrade_strategy'] = 'laravel_migrations';
+        $result['database_setup'] = [
+            'strategy' => $result['schema_strategy'],
+            'baseline_schema' => $result['baseline_schema'],
+            'baseline_schema_used' => $result['baseline_schema_used'],
+            'migration_rows' => $result['migration_rows'],
+            'upgrade_strategy' => $result['upgrade_strategy'],
+        ];
 
         return $result;
     }
@@ -1151,6 +1160,39 @@ final class InstallerRuntime
         }
 
         return 'migrations';
+    }
+
+    private static function countMigrationRows(array $config): int
+    {
+        $database = $config['database'] ?? [];
+        $host = (string) ($database['host'] ?? '');
+        $dbName = (string) ($database['database'] ?? '');
+        $username = (string) ($database['username'] ?? '');
+        $password = (string) ($database['password'] ?? '');
+        $port = (int) ($database['port'] ?? 3306);
+
+        if ($host === '' || $dbName === '' || $username === '') {
+            return 0;
+        }
+
+        try {
+            $pdo = new PDO(
+                "mysql:host={$host};port={$port};dbname={$dbName}",
+                $username,
+                $password,
+                [PDO::ATTR_TIMEOUT => 3, PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+            );
+
+            if (! self::mysqlTableExists($pdo, $dbName, 'migrations')) {
+                return 0;
+            }
+
+            return (int) $pdo->query('SELECT COUNT(*) FROM `migrations`')->fetchColumn();
+        } catch (Throwable $e) {
+            self::appendLog('Migration row count probe failed: ' . $e->getMessage(), 'warn');
+
+            return 0;
+        }
     }
 
     public static function recoverFreshInstallMigrationResidue(array $config): array
