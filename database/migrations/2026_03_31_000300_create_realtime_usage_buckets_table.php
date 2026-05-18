@@ -12,8 +12,8 @@ return new class extends Migration
             $table->id();
             $table->dateTime('bucket_start');
             $table->string('bucket_granularity', 16);
-            $table->string('client_code')->default('');
-            $table->string('project_code')->default('');
+            $table->string('client_code', 64)->default('');
+            $table->string('project_code', 64)->default('');
             $table->string('event_type', 80);
             $table->unsignedBigInteger('event_count')->default(0);
             $table->unsignedBigInteger('bytes_in')->default(0);

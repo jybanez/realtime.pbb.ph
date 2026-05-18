@@ -24,8 +24,8 @@ class RealtimeUsageTelemetry
         $key = [
             'bucket_start' => $bucketStart,
             'bucket_granularity' => 'hour',
-            'client_code' => trim((string) ($clientCode ?? $claims?->appCode ?? '')),
-            'project_code' => trim((string) ($projectCode ?? $claims?->projectCode ?? '')),
+            'client_code' => substr(trim((string) ($clientCode ?? $claims?->appCode ?? '')), 0, 64),
+            'project_code' => substr(trim((string) ($projectCode ?? $claims?->projectCode ?? '')), 0, 64),
             'event_type' => trim($eventType) !== '' ? $eventType : 'system.unknown',
         ];
 
