@@ -57,6 +57,16 @@
         "password": { "type": "string" }
       }
     },
+    "platform": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "mysql_binary": {
+          "type": "string",
+          "description": "Absolute mysql.exe or mysql client path selected by Kit Setup for baseline schema loading."
+        }
+      }
+    },
     "realtime": {
       "type": "object",
       "required": ["service_name", "token_audience", "token_signing_secret", "trusted_issuers", "public_websocket_url", "ws_bind_address", "ws_port"],
@@ -155,6 +165,11 @@
       "additionalProperties": true,
       "properties": {
         "run_migrations": { "type": "boolean" },
+        "database_setup": {
+          "type": "string",
+          "enum": ["baseline_schema"],
+          "description": "Kit-provided fresh install database setup strategy. Realtime fresh installs use the packaged baseline schema."
+        },
         "seed_initial_data": {
           "type": "boolean",
           "description": "Deprecated for core install. Kit Setup handles optional data preparation through release.json installer.tools."

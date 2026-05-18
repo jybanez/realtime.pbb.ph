@@ -415,6 +415,7 @@ final class InstallerRuntime
         $dbUser = (string) ($config['database']['username'] ?? '');
         $dbPassword = (string) ($config['database']['password'] ?? '');
         $dbPort = (int) ($config['database']['port'] ?? 3306);
+        $mysqlBinaryCheck = self::checkMysqlBinary($config);
         $wsPort = (int) ($config['realtime']['ws_port'] ?? 8080);
 
         $checks = [];
@@ -434,6 +435,7 @@ final class InstallerRuntime
         $checks[] = self::check('token_secret', 'Token signing secret', self::isNonPlaceholderSecret($secret), self::maskSecret($secret), true);
         $checks[] = self::check('ws_port', 'Websocket port availability', self::isTcpPortAvailable($wsPort), "Port {$wsPort}", false);
         $checks[] = self::check('db_connection', 'Database connectivity', self::canConnectToDatabase($dbHost, $dbPort, $dbName, $dbUser, $dbPassword), "{$dbHost}:{$dbPort}/{$dbName}");
+        $checks[] = self::check('platform_mysql_binary', 'Kit-provided MySQL client binary', $mysqlBinaryCheck['ok'], $mysqlBinaryCheck['message'], true);
 
         return $checks;
     }
@@ -1054,7 +1056,7 @@ final class InstallerRuntime
             $descriptorSpec,
             $pipes,
             dirname($artisan),
-            self::artisanEnvironment()
+            self::artisanEnvironment($config)
         );
 
         if (! is_resource($process)) {
@@ -1084,14 +1086,15 @@ final class InstallerRuntime
         ];
     }
 
-    private static function artisanEnvironment(): array
+    private static function artisanEnvironment(array $config): array
     {
         $environment = getenv();
         if (! is_array($environment)) {
             $environment = $_ENV;
         }
         $path = (string) (getenv('PATH') ?: getenv('Path') ?: '');
-        $clientBin = self::databaseClientBinPath();
+        $mysqlBinary = self::resolveMysqlBinary($config, false);
+        $clientBin = $mysqlBinary !== null ? dirname($mysqlBinary) : null;
 
         if ($clientBin !== null && ! str_contains(strtolower($path), strtolower($clientBin))) {
             $path = $clientBin . PATH_SEPARATOR . $path;
@@ -1099,30 +1102,55 @@ final class InstallerRuntime
 
         $environment['PATH'] = $path;
         $environment['Path'] = $path;
+        if ($mysqlBinary !== null) {
+            $environment['PBB_MYSQL_BINARY'] = $mysqlBinary;
+        }
 
         return $environment;
     }
 
-    private static function databaseClientBinPath(): ?string
+    private static function checkMysqlBinary(array $config): array
     {
-        $candidates = [
-            'C:\\wamp64\\bin\\mariadb\\mariadb11.2.2\\bin',
-            'C:\\wamp64\\bin\\mysql\\mysql8.2.0\\bin',
-            'C:\\wamp64\\bin\\mysql\\mysql5.7.44\\bin',
-        ];
+        try {
+            $binary = self::resolveMysqlBinary($config, true);
 
-        foreach ($candidates as $candidate) {
-            if (is_file($candidate . DIRECTORY_SEPARATOR . 'mysql.exe')) {
-                return $candidate;
+            return [
+                'ok' => true,
+                'message' => $binary,
+            ];
+        } catch (Throwable $e) {
+            return [
+                'ok' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    private static function resolveMysqlBinary(array $config, bool $required): ?string
+    {
+        $configured = trim((string) ($config['platform']['mysql_binary'] ?? ''));
+        $environment = trim((string) (getenv('PBB_MYSQL_BINARY') ?: ''));
+        $binary = $configured !== '' ? $configured : $environment;
+
+        if ($binary === '') {
+            if ($required) {
+                throw new RuntimeException('Kit did not provide platform.mysql_binary / PBB_MYSQL_BINARY.');
             }
+
+            return null;
         }
 
-        return null;
+        if (! is_file($binary)) {
+            throw new RuntimeException('Kit-provided MySQL client binary does not exist: ' . $binary);
+        }
+
+        return $binary;
     }
 
     public static function runMigrations(array $config): array
     {
         $recovery = self::recoverFreshInstallMigrationResidue($config);
+        self::resolveMysqlBinary($config, true);
         $result = self::runArtisan($config, ['migrate', '--force']);
 
         if (($result['exit_code'] ?? 1) !== 0) {

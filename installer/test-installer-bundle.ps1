@@ -19,6 +19,15 @@ $PhpBin = if (Test-Path "C:\wamp64\bin\php\php8.2.29\php.exe") {
 } else {
     (Get-Command php).Source
 }
+$MysqlBin = if (-not [string]::IsNullOrWhiteSpace($env:PBB_MYSQL_BINARY) -and (Test-Path $env:PBB_MYSQL_BINARY)) {
+    $env:PBB_MYSQL_BINARY
+} else {
+    (Get-ChildItem -Path "C:\wamp64\bin" -Recurse -Filter "mysql.exe" -ErrorAction SilentlyContinue |
+        Select-Object -First 1 -ExpandProperty FullName)
+}
+if ([string]::IsNullOrWhiteSpace($MysqlBin) -or -not (Test-Path $MysqlBin)) {
+    throw "Acceptance test requires a MySQL/MariaDB mysql.exe path via PBB_MYSQL_BINARY."
+}
 $AdminEmail = "installer.acceptance+$Timestamp@example.local"
 $AdminPassword = "Realtime!23456"
 $InstallConfig = $null
@@ -386,6 +395,12 @@ try {
     $serviceManager = if ($targetOs -eq "windows") { "scheduled-task" } else { "systemd" }
     $InstallConfig = @{
         mode = "fresh"
+        options = @{
+            database_setup = "baseline_schema"
+        }
+        platform = @{
+            mysql_binary = $MysqlBin
+        }
         app = @{
             install_path = $ExtractRoot
             app_url = $AppBaseUrl
