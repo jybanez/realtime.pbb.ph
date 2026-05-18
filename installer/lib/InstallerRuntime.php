@@ -427,6 +427,8 @@ final class InstallerRuntime
         }
 
         $checks[] = self::check('install_path', 'Install path safety', self::isSafeInstallPath($installPath), $installPath ?: 'Missing install path');
+        $installRootCheck = self::checkInstallPathMatchesRoot($installPath);
+        $checks[] = self::check('install_path_matches_root', 'Install path matches package root', $installRootCheck['ok'], $installRootCheck['message']);
         $checks[] = self::check('install_path_writable', 'Install path writable', is_dir($installPath) && is_writable($installPath), $installPath ?: 'Missing install path');
         $checks[] = self::check('storage_writable', 'Storage writable', is_dir($storage) && is_writable($storage), $storage);
         $checks[] = self::check('cache_writable', 'Bootstrap cache writable', is_dir($cache) && is_writable($cache), $cache);
@@ -2128,6 +2130,43 @@ PHP;
         $systemRoots = ['C:\\', 'C:\\Windows', 'C:\\Program Files', 'C:\\Program Files (x86)'];
 
         return ! in_array(rtrim($normalized, '\\/'), $systemRoots, true);
+    }
+
+    private static function checkInstallPathMatchesRoot(string $installPath): array
+    {
+        $resolvedInstallPath = realpath($installPath);
+        $resolvedRootPath = realpath(self::rootPath());
+
+        if ($resolvedInstallPath === false || $resolvedRootPath === false) {
+            return [
+                'ok' => false,
+                'message' => 'Unable to resolve install path or package root.',
+            ];
+        }
+
+        $normalizedInstallPath = self::normalizePathForComparison($resolvedInstallPath);
+        $normalizedRootPath = self::normalizePathForComparison($resolvedRootPath);
+
+        if ($normalizedInstallPath !== $normalizedRootPath) {
+            return [
+                'ok' => false,
+                'message' => sprintf(
+                    'Kit app.install_path must be the extracted Realtime package root. install_path=%s package_root=%s',
+                    $resolvedInstallPath,
+                    $resolvedRootPath
+                ),
+            ];
+        }
+
+        return [
+            'ok' => true,
+            'message' => $resolvedInstallPath,
+        ];
+    }
+
+    private static function normalizePathForComparison(string $path): string
+    {
+        return strtolower(rtrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path), DIRECTORY_SEPARATOR));
     }
 
     private static function isNonPlaceholderSecret(string $secret): bool
