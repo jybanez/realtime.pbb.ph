@@ -14,11 +14,11 @@ return new class extends Migration
 
         Schema::create('realtime_server_events', function (Blueprint $table) {
             $table->id();
-            $table->string('publish_id')->unique();
-            $table->string('client_code');
-            $table->string('project_code');
-            $table->string('room');
-            $table->string('event_type');
+            $table->string('publish_id', 64)->unique();
+            $table->string('client_code', 64);
+            $table->string('project_code', 64);
+            $table->string('room', 180);
+            $table->string('event_type', 180);
             $table->string('event_id')->nullable();
             $table->string('status', 32)->default('pending')->index();
             $table->unsignedInteger('attempts')->default(0);

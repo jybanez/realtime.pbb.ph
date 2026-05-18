@@ -173,10 +173,10 @@ class RealtimeMediaChunkDispatcher
         if (!$gateway instanceof RealtimeGateway) {
             RealtimeServerEvent::query()->create([
                 'publish_id' => 'pub_' . Str::lower((string) Str::ulid()),
-                'client_code' => (string) $chunk->client_code,
-                'project_code' => (string) $chunk->project_code,
-                'room' => (string) $chunk->room,
-                'event_type' => $eventType,
+                'client_code' => substr((string) $chunk->client_code, 0, 64),
+                'project_code' => substr((string) $chunk->project_code, 0, 64),
+                'room' => substr((string) $chunk->room, 0, 180),
+                'event_type' => substr($eventType, 0, 180),
                 'event_id' => (string) $chunk->chunk_id . ':' . $eventType,
                 'status' => 'pending',
                 'attempts' => 0,

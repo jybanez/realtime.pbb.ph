@@ -19,10 +19,10 @@ class RealtimeEventPublishQueue
     ): RealtimeServerEvent {
         return RealtimeServerEvent::query()->create([
             'publish_id' => 'pub_' . Str::lower((string) Str::ulid()),
-            'client_code' => trim($clientCode),
-            'project_code' => $project->project_code,
-            'room' => trim($room),
-            'event_type' => trim($eventType),
+            'client_code' => substr(trim($clientCode), 0, 64),
+            'project_code' => substr(trim((string) $project->project_code), 0, 64),
+            'room' => substr(trim($room), 0, 180),
+            'event_type' => substr(trim($eventType), 0, 180),
             'event_id' => $eventId ? trim($eventId) : null,
             'status' => 'pending',
             'attempts' => 0,

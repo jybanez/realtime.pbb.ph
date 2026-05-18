@@ -1085,13 +1085,94 @@ final class InstallerRuntime
 
     public static function runMigrations(array $config): array
     {
+        $recovery = self::recoverFreshInstallMigrationResidue($config);
         $result = self::runArtisan($config, ['migrate', '--force']);
 
         if (($result['exit_code'] ?? 1) !== 0) {
             throw new RuntimeException('Database migrations failed: ' . trim((string) ($result['stderr'] ?: $result['stdout'])));
         }
 
+        $result['recovery'] = $recovery;
+
         return $result;
+    }
+
+    public static function recoverFreshInstallMigrationResidue(array $config): array
+    {
+        if ((string) ($config['mode'] ?? 'fresh') !== 'fresh') {
+            return ['status' => 'skipped', 'reason' => 'not_fresh_mode'];
+        }
+
+        if (self::loadManifest() !== [] || ! empty(self::loadCompletionMarker()['installed_at'])) {
+            return ['status' => 'skipped', 'reason' => 'installed_marker_present'];
+        }
+
+        $database = $config['database'] ?? [];
+        $host = (string) ($database['host'] ?? '');
+        $dbName = (string) ($database['database'] ?? '');
+        $username = (string) ($database['username'] ?? '');
+        $password = (string) ($database['password'] ?? '');
+        $port = (int) ($database['port'] ?? 3306);
+
+        if ($host === '' || $dbName === '' || $username === '') {
+            return ['status' => 'skipped', 'reason' => 'database_config_incomplete'];
+        }
+
+        try {
+            $pdo = new PDO(
+                "mysql:host={$host};port={$port};dbname={$dbName}",
+                $username,
+                $password,
+                [PDO::ATTR_TIMEOUT => 3, PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+            );
+
+            $actions = [];
+            $droppedTables = [];
+            $droppedColumns = [];
+
+            $usageMigration = '2026_03_31_000300_create_realtime_usage_buckets_table';
+            if (
+                self::mysqlTableExists($pdo, $dbName, 'realtime_usage_buckets')
+                && ! self::mysqlMigrationIsRecorded($pdo, $dbName, $usageMigration)
+            ) {
+                $pdo->exec('DROP TABLE `realtime_usage_buckets`');
+                self::appendLog('Dropped partial realtime_usage_buckets table before fresh migration retry.', 'warn');
+                $actions[] = 'dropped partial realtime_usage_buckets table';
+                $droppedTables[] = 'realtime_usage_buckets';
+            }
+
+            $serverEventsMigration = '2026_04_06_141500_add_backend_ingress_secret_hash_to_realtime_clients_and_create_realtime_server_events_table';
+            if (! self::mysqlMigrationIsRecorded($pdo, $dbName, $serverEventsMigration)) {
+                if (self::mysqlTableExists($pdo, $dbName, 'realtime_server_events')) {
+                    $pdo->exec('DROP TABLE `realtime_server_events`');
+                    self::appendLog('Dropped partial realtime_server_events table before fresh migration retry.', 'warn');
+                    $actions[] = 'dropped partial realtime_server_events table';
+                    $droppedTables[] = 'realtime_server_events';
+                }
+
+                if (self::mysqlColumnExists($pdo, $dbName, 'realtime_clients', 'backend_ingress_secret_hash')) {
+                    $pdo->exec('ALTER TABLE `realtime_clients` DROP COLUMN `backend_ingress_secret_hash`');
+                    self::appendLog('Dropped partial realtime_clients.backend_ingress_secret_hash column before fresh migration retry.', 'warn');
+                    $actions[] = 'dropped partial realtime_clients.backend_ingress_secret_hash column';
+                    $droppedColumns[] = 'realtime_clients.backend_ingress_secret_hash';
+                }
+            }
+
+            if ($actions !== []) {
+                return [
+                    'status' => 'recovered',
+                    'actions' => $actions,
+                    'dropped_tables' => $droppedTables,
+                    'dropped_columns' => $droppedColumns,
+                ];
+            }
+
+            return ['status' => 'clean'];
+        } catch (Throwable $e) {
+            self::appendLog('Fresh migration residue recovery skipped: ' . $e->getMessage(), 'warn');
+
+            return ['status' => 'skipped', 'reason' => 'database_probe_failed'];
+        }
     }
 
     public static function bootstrapAdmin(array $config): array
@@ -2007,6 +2088,38 @@ PHP;
             self::appendLog('Database connectivity check failed: ' . $e->getMessage(), 'warn');
             return false;
         }
+    }
+
+    private static function mysqlTableExists(PDO $pdo, string $database, string $table): bool
+    {
+        $statement = $pdo->prepare(
+            'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?'
+        );
+        $statement->execute([$database, $table]);
+
+        return (int) $statement->fetchColumn() > 0;
+    }
+
+    private static function mysqlMigrationIsRecorded(PDO $pdo, string $database, string $migration): bool
+    {
+        if (! self::mysqlTableExists($pdo, $database, 'migrations')) {
+            return false;
+        }
+
+        $statement = $pdo->prepare('SELECT COUNT(*) FROM `migrations` WHERE `migration` = ?');
+        $statement->execute([$migration]);
+
+        return (int) $statement->fetchColumn() > 0;
+    }
+
+    private static function mysqlColumnExists(PDO $pdo, string $database, string $table, string $column): bool
+    {
+        $statement = $pdo->prepare(
+            'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = ? AND table_name = ? AND column_name = ?'
+        );
+        $statement->execute([$database, $table, $column]);
+
+        return (int) $statement->fetchColumn() > 0;
     }
 
     private static function probeHttpUrl(string $url): array
