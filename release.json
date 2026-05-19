@@ -92,6 +92,7 @@
       "command": "{runtime.php_binary}",
       "args": ["artisan", "realtime:serve"],
       "env": {
+        "REALTIME_WS_PUBLIC_HOST": "{app.host}",
         "REALTIME_EMBEDDED_MEDIA_CHUNK_DISPATCH_ENABLED": "false"
       },
       "health_check": {

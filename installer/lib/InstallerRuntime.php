@@ -1600,6 +1600,7 @@ PHP;
         $installPath = rtrim((string) ($config['app']['install_path'] ?? self::rootPath()), '\\/');
         $bindAddress = trim((string) ($realtime['ws_bind_address'] ?? '127.0.0.1'));
         $host = $bindAddress !== '' ? $bindAddress : '127.0.0.1';
+        $publicHost = self::derivePublicWebsocketHost($config);
         $port = (int) ($realtime['ws_port'] ?? 8080);
         $port = $port > 0 ? $port : 8080;
 
@@ -1617,6 +1618,7 @@ PHP;
                 'realtime:serve',
             ],
             'env' => [
+                'REALTIME_WS_PUBLIC_HOST' => $publicHost,
                 'REALTIME_EMBEDDED_MEDIA_CHUNK_DISPATCH_ENABLED' => 'false',
             ],
             'health_check' => [
@@ -2202,17 +2204,36 @@ PHP;
         $wsUrl = (string) ($config['realtime']['public_websocket_url'] ?? '');
         $appUrl = (string) ($config['app']['app_url'] ?? '');
 
-        $wsHost = parse_url($wsUrl, PHP_URL_HOST);
-        if (is_string($wsHost) && $wsHost !== '') {
-            return $wsHost;
+        $appHost = parse_url($appUrl, PHP_URL_HOST);
+        if (is_string($appHost) && $appHost !== '') {
+            if (! self::isLocalHostname($appHost)) {
+                return $appHost;
+            }
         }
 
-        $appHost = parse_url($appUrl, PHP_URL_HOST);
+        $wsHost = parse_url($wsUrl, PHP_URL_HOST);
+        if (is_string($wsHost) && $wsHost !== '') {
+            if (! self::isLocalHostname($wsHost)) {
+                return $wsHost;
+            }
+        }
+
         if (is_string($appHost) && $appHost !== '') {
             return $appHost;
         }
 
+        if (is_string($wsHost) && $wsHost !== '') {
+            return $wsHost;
+        }
+
         return 'localhost';
+    }
+
+    private static function isLocalHostname(string $host): bool
+    {
+        $normalized = strtolower(trim($host, " \t\n\r\0\x0B[]"));
+
+        return in_array($normalized, ['localhost', '127.0.0.1', '::1'], true);
     }
 
     private static function check(string $key, string $label, bool $passed, string $message, bool $blocking = true): array
