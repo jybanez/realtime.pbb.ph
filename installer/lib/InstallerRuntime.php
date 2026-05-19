@@ -665,7 +665,7 @@ final class InstallerRuntime
             'REALTIME_WS_PUBLIC_HOST' => $publicWebsocketHost,
             'REALTIME_WS_BIND_ADDRESS' => (string) ($realtime['ws_bind_address'] ?? '127.0.0.1'),
             'REALTIME_WS_PORT' => (string) ($realtime['ws_port'] ?? 8080),
-            'REALTIME_ALLOWED_ORIGINS' => implode(',', self::normalizeOriginList((string) ($realtime['allowed_origins'] ?? ''))),
+            'REALTIME_ALLOWED_ORIGINS' => implode(',', self::deriveAllowedOrigins($config)),
             'REALTIME_EMBEDDED_MEDIA_CHUNK_DISPATCH_ENABLED' => ! empty($realtime['embedded_media_chunk_dispatch_enabled']) ? 'true' : 'false',
         ];
 
@@ -1684,6 +1684,17 @@ PHP;
                     'ProxyWebsocketFallbackToProxyHttp' => 'Off',
                 ],
                 'set_env' => new stdClass(),
+                'smoke_test' => [
+                    'auth_required' => false,
+                    'path' => $serverPath,
+                    'query' => new stdClass(),
+                    'headers' => [
+                        'Host' => self::derivePublicWebsocketHost($config),
+                        'Origin' => rtrim((string) ($config['app']['app_url'] ?? ''), '/'),
+                    ],
+                    'expect_status' => 101,
+                    'expect_first_message_type' => 'session.awaiting-auth',
+                ],
                 'install_blocking' => false,
                 'smoke_test_phase' => 'post-vhost',
                 'smoke_test_owner' => 'kit-setup',
@@ -2197,6 +2208,22 @@ PHP;
         }
 
         return array_values(array_unique($normalized));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function deriveAllowedOrigins(array $config): array
+    {
+        $realtime = $config['realtime'] ?? [];
+        $origins = self::normalizeOriginList($realtime['allowed_origins'] ?? []);
+        $publicHost = self::derivePublicWebsocketHost($config);
+
+        if ($publicHost !== '') {
+            $origins[] = $publicHost;
+        }
+
+        return array_values(array_unique(array_filter($origins, static fn (string $origin): bool => $origin !== '')));
     }
 
     private static function derivePublicWebsocketHost(array $config): string

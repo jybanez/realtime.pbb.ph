@@ -74,6 +74,17 @@
           "ProxyWebsocketFallbackToProxyHttp": "Off"
         },
         "set_env": {},
+        "smoke_test": {
+          "auth_required": false,
+          "path": "/realtime",
+          "query": {},
+          "headers": {
+            "Host": "{app.host}",
+            "Origin": "{app.url}"
+          },
+          "expect_status": 101,
+          "expect_first_message_type": "session.awaiting-auth"
+        },
         "install_blocking": false,
         "smoke_test_phase": "post-vhost",
         "notes": "Kit Setup owns final Apache/Nginx include rendering, guarded apply, config test, and public websocket smoke test."
