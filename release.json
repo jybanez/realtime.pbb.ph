@@ -77,6 +77,53 @@
       }
     ]
   },
+  "runtime_services": [
+    {
+      "id": "pbb-realtime-websocket",
+      "name": "PBB Realtime WebSocket",
+      "type": "background_process",
+      "required": true,
+      "required_for_smoke": true,
+      "manager": "kit",
+      "working_directory": "{app.install_path}",
+      "command": "{runtime.php_binary}",
+      "args": ["artisan", "realtime:serve"],
+      "env": {
+        "REALTIME_EMBEDDED_MEDIA_CHUNK_DISPATCH_ENABLED": "false"
+      },
+      "health_check": {
+        "type": "tcp",
+        "host": "127.0.0.1",
+        "port": 8080,
+        "timeout_seconds": 3
+      },
+      "logs": {
+        "stdout": "storage/logs/pbb-realtime-websocket.out.log",
+        "stderr": "storage/logs/pbb-realtime-websocket.err.log"
+      },
+      "notes": "Kit starts and verifies this before public websocket smoke checks."
+    },
+    {
+      "id": "pbb-realtime-media-dispatcher",
+      "name": "PBB Realtime Media Dispatcher",
+      "type": "background_process",
+      "required": true,
+      "required_for_smoke": false,
+      "manager": "kit",
+      "working_directory": "{app.install_path}",
+      "command": "{runtime.php_binary}",
+      "args": ["artisan", "realtime:dispatch"],
+      "health_check": {
+        "type": "process",
+        "timeout_seconds": 3
+      },
+      "logs": {
+        "stdout": "storage/logs/pbb-realtime-media-dispatcher.out.log",
+        "stderr": "storage/logs/pbb-realtime-media-dispatcher.err.log"
+      },
+      "notes": "Kit starts this alongside the websocket daemon when embedded media chunk dispatch is disabled."
+    }
+  ],
   "services": [
     {
       "id": "pbb-realtime-websocket",

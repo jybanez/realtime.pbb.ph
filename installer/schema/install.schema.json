@@ -90,6 +90,10 @@
             { "type": "array", "items": { "type": "string" } }
           ]
         },
+        "embedded_media_chunk_dispatch_enabled": {
+          "type": "boolean",
+          "description": "Set false for Kit-managed installs so Kit starts realtime:dispatch as a separate runtime service."
+        },
         "populate": {
           "type": "object",
           "additionalProperties": true,

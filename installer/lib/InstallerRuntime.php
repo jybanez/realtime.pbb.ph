@@ -354,6 +354,7 @@ final class InstallerRuntime
                 'ws_bind_address' => '127.0.0.1',
                 'ws_port' => 8080,
                 'allowed_origins' => 'https://hq.example.local',
+                'embedded_media_chunk_dispatch_enabled' => false,
             ],
             'admin' => [
                 'strategy' => 'create_if_missing',
@@ -665,6 +666,7 @@ final class InstallerRuntime
             'REALTIME_WS_BIND_ADDRESS' => (string) ($realtime['ws_bind_address'] ?? '127.0.0.1'),
             'REALTIME_WS_PORT' => (string) ($realtime['ws_port'] ?? 8080),
             'REALTIME_ALLOWED_ORIGINS' => implode(',', self::normalizeOriginList((string) ($realtime['allowed_origins'] ?? ''))),
+            'REALTIME_EMBEDDED_MEDIA_CHUNK_DISPATCH_ENABLED' => ! empty($realtime['embedded_media_chunk_dispatch_enabled']) ? 'true' : 'false',
         ];
 
         $maestro = is_array($config['dependencies']['maestro'] ?? null) ? $config['dependencies']['maestro'] : [];
@@ -1511,6 +1513,7 @@ PHP;
         $database = $config['database'] ?? [];
         $app = $config['app'] ?? [];
         $webServer = self::webServerRequirements($config);
+        $runtimeServices = self::runtimeServices($config);
 
         return [
             'schema_version' => 1,
@@ -1532,6 +1535,7 @@ PHP;
                 'username' => (string) ($database['username'] ?? ''),
             ],
             'services' => self::serviceDefinitions($config, $serviceArtifact),
+            'runtime_services' => $runtimeServices,
             'web_server' => $webServer,
             'web_server_requirements' => $webServer['requirements'],
             'health' => [
@@ -1548,6 +1552,7 @@ PHP;
         $warnings = array_values($details['warnings'] ?? []);
         $errors = array_values($details['errors'] ?? []);
         $webServer = self::webServerRequirements($config);
+        $runtimeServices = self::runtimeServices($config);
 
         foreach ($validation as $check) {
             if (($check['status'] ?? 'fail') !== 'pass' && ! (bool) ($check['blocking'] ?? true)) {
@@ -1576,6 +1581,7 @@ PHP;
                 'websocket' => (string) ($config['realtime']['public_websocket_url'] ?? ''),
             ],
             'services' => self::serviceDefinitions($config, $details['service_artifact'] ?? self::renderServiceTemplate($config)),
+            'runtime_services' => $runtimeServices,
             'web_server' => $webServer,
             'web_server_requirements' => $webServer['requirements'],
             'warnings' => $warnings,
@@ -1586,6 +1592,67 @@ PHP;
                 'install_log' => self::logPath(),
             ],
         ];
+    }
+
+    public static function runtimeServices(array $config): array
+    {
+        $realtime = $config['realtime'] ?? [];
+        $installPath = rtrim((string) ($config['app']['install_path'] ?? self::rootPath()), '\\/');
+        $bindAddress = trim((string) ($realtime['ws_bind_address'] ?? '127.0.0.1'));
+        $host = $bindAddress !== '' ? $bindAddress : '127.0.0.1';
+        $port = (int) ($realtime['ws_port'] ?? 8080);
+        $port = $port > 0 ? $port : 8080;
+
+        return [[
+            'id' => 'pbb-realtime-websocket',
+            'name' => 'PBB Realtime WebSocket',
+            'type' => 'background_process',
+            'required' => true,
+            'required_for_smoke' => true,
+            'manager' => 'kit',
+            'working_directory' => $installPath,
+            'command' => self::phpBinary(),
+            'args' => [
+                'artisan',
+                'realtime:serve',
+            ],
+            'env' => [
+                'REALTIME_EMBEDDED_MEDIA_CHUNK_DISPATCH_ENABLED' => 'false',
+            ],
+            'health_check' => [
+                'type' => 'tcp',
+                'host' => $host,
+                'port' => $port,
+                'timeout_seconds' => 3,
+            ],
+            'logs' => [
+                'stdout' => 'storage/logs/pbb-realtime-websocket.out.log',
+                'stderr' => 'storage/logs/pbb-realtime-websocket.err.log',
+            ],
+            'notes' => 'Kit starts and verifies this before public websocket smoke checks.',
+        ], [
+            'id' => 'pbb-realtime-media-dispatcher',
+            'name' => 'PBB Realtime Media Dispatcher',
+            'type' => 'background_process',
+            'required' => true,
+            'required_for_smoke' => false,
+            'manager' => 'kit',
+            'working_directory' => $installPath,
+            'command' => self::phpBinary(),
+            'args' => [
+                'artisan',
+                'realtime:dispatch',
+            ],
+            'health_check' => [
+                'type' => 'process',
+                'timeout_seconds' => 3,
+            ],
+            'logs' => [
+                'stdout' => 'storage/logs/pbb-realtime-media-dispatcher.out.log',
+                'stderr' => 'storage/logs/pbb-realtime-media-dispatcher.err.log',
+            ],
+            'notes' => 'Kit starts this alongside the websocket daemon when embedded media chunk dispatch is disabled.',
+        ]];
     }
 
     public static function webServerRequirements(array $config): array
