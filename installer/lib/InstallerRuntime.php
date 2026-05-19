@@ -1678,6 +1678,9 @@ PHP;
                     'Upgrade' => '$http_upgrade',
                     'Connection' => 'upgrade',
                 ],
+                'directives' => [
+                    'ProxyWebsocketFallbackToProxyHttp' => 'Off',
+                ],
                 'set_env' => new stdClass(),
                 'install_blocking' => false,
                 'smoke_test_phase' => 'post-vhost',

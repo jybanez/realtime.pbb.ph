@@ -70,6 +70,9 @@
           "Upgrade": "$http_upgrade",
           "Connection": "upgrade"
         },
+        "directives": {
+          "ProxyWebsocketFallbackToProxyHttp": "Off"
+        },
         "set_env": {},
         "install_blocking": false,
         "smoke_test_phase": "post-vhost",
