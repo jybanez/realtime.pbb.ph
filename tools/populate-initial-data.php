@@ -9,6 +9,7 @@ use App\Realtime\Ingress\BackendIngressSecret;
 use Illuminate\Contracts\Console\Kernel;
 
 const REALTIME_POPULATOR_VERSION = '1.0.0';
+const REALTIME_DEFAULT_SOURCE = 'resources/data/realtime/hotline-client-data.json';
 
 function usage(): void
 {
@@ -111,16 +112,42 @@ function finish_report(array $report, string $status, string $summary): array
     return $report;
 }
 
+function default_source_path(): string
+{
+    return dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, REALTIME_DEFAULT_SOURCE);
+}
+
 function list_records(array $config): array
 {
     $populate = $config['realtime']['populate'] ?? [];
     if (! is_array($populate)) {
-        return [];
+        return [
+            'records' => [],
+            'source_path' => null,
+            'source_id' => null,
+            'source_status' => 'skipped',
+            'used_default_source' => false,
+        ];
     }
 
     $records = [];
+    $sourcePath = null;
+    $sourceId = null;
+    $usedDefaultSource = false;
+
     if (isset($populate['source']) && is_string($populate['source']) && trim($populate['source']) !== '') {
-        $source = read_json_file($populate['source']);
+        $sourcePath = trim($populate['source']);
+        $sourceId = 'configured_population_source';
+    }
+
+    if ($sourcePath === null && empty($populate['clients']) && is_file(default_source_path())) {
+        $sourcePath = default_source_path();
+        $sourceId = 'packaged_hotline_client_data';
+        $usedDefaultSource = true;
+    }
+
+    if ($sourcePath !== null) {
+        $source = read_json_file($sourcePath);
         $records = $source['clients'] ?? $source['records'] ?? [];
     }
 
@@ -128,7 +155,13 @@ function list_records(array $config): array
         $records = array_merge($records, $populate['clients']);
     }
 
-    return array_values(array_filter($records, 'is_array'));
+    return [
+        'records' => array_values(array_filter($records, 'is_array')),
+        'source_path' => $sourcePath,
+        'source_id' => $sourceId,
+        'source_status' => $sourcePath === null ? 'skipped' : 'success',
+        'used_default_source' => $usedDefaultSource,
+    ];
 }
 
 function validate_client_record(array $record, int $index): array
@@ -347,13 +380,15 @@ try {
         exit(0);
     }
 
-    $records = list_records($config);
-    $sourcePath = (string) ($populate['source'] ?? '');
+    $recordSource = list_records($config);
+    $records = $recordSource['records'];
+    $sourcePath = is_string($recordSource['source_path']) ? $recordSource['source_path'] : '';
     if ($sourcePath !== '') {
         $report['sources'][] = [
-            'id' => 'realtime_population_source',
+            'id' => $recordSource['source_id'] ?? 'realtime_population_source',
             'path' => $sourcePath,
-            'status' => is_file($sourcePath) ? 'success' : 'failed',
+            'status' => $recordSource['source_status'] ?? (is_file($sourcePath) ? 'success' : 'failed'),
+            'used_default_source' => (bool) ($recordSource['used_default_source'] ?? false),
         ];
     }
 

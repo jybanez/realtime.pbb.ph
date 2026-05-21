@@ -47,6 +47,7 @@
         "path": "tools/populate-initial-data.php",
         "description": "Populate Realtime clients, project scopes, policies, media/query settings, and backend ingress secrets.",
         "config_section": "realtime.populate",
+        "default_source": "resources/data/realtime/hotline-client-data.json",
         "required": false
       }
     }

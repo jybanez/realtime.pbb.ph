@@ -13,71 +13,10 @@
   "realtime": {
     "populate": {
       "enabled": true,
+      "source": "resources/data/realtime/hotline-client-data.json",
       "options": {
         "overwrite_secrets": false
-      },
-      "clients": [
-        {
-          "client_code": "clt_HOTLINE_HUB_A",
-          "name": "PBB Hotline Hub A",
-          "status": "active",
-          "description": "Hotline app integration for Hub A.",
-          "integration_owner": "PBB Hotline",
-          "issuer_identity": "hotline.hub-a.pbb.ph",
-          "trusted_signing_profile": "hotline-hub-a",
-          "backend_ingress_secret": "replace-with-kit-generated-secret",
-          "allowed_origins": ["https://hotline.hub-a.pbb.ph"],
-          "origin_policy_mode": "allowlist",
-          "policies": [
-            {
-              "policy_code": "pol_HOTLINE_OPERATOR_HUB_A",
-              "name": "Hotline Operator Hub A",
-              "status": "active",
-              "policy_category": "hotline",
-              "owner_team": "PBB Hotline",
-              "capability_profile": {
-                "rooms": ["join", "leave", "publish"],
-                "presence": ["publish", "subscribe"],
-                "chat": ["publish", "subscribe"],
-                "events": ["publish"],
-                "call": ["signal"]
-              },
-              "room_policy_profile": {
-                "mode": "allowlist",
-                "prefixes": ["chat.thread.incident.", "presence.global.hotline", "call.session."]
-              },
-              "allow_deny_mode": "allowlist"
-            }
-          ],
-          "projects": [
-            {
-              "project_code": "prj_HOTLINE_OPERATOR_HUB_A",
-              "name": "Hotline Operator Hub A",
-              "status": "active",
-              "description": "Operator console realtime project scope.",
-              "allowed_origins": ["https://hotline.hub-a.pbb.ph"],
-              "origin_policy_mode": "allowlist",
-              "policy_profile_code": "pol_HOTLINE_OPERATOR_HUB_A",
-              "capability_profile_code": "hotline-operator",
-              "room_policy_profile_code": "hotline-operator-rooms",
-              "media_ingest_settings": {
-                "enabled": true,
-                "binary_enabled": true,
-                "max_binary_chunk_bytes": 2097152,
-                "base_url": "https://hotline.hub-a.pbb.ph",
-                "path": "/api/internal/media/chunks"
-              },
-              "product_query_forwarding_settings": {
-                "enabled": true,
-                "base_url": "https://hotline.hub-a.pbb.ph",
-                "path": "/api/internal/realtime/product-query",
-                "allowed_events": ["product.query.request"],
-                "allowed_queries": ["hotline.incident.snapshot"]
-              }
-            }
-          ]
-        }
-      ]
+      }
     }
   }
 }

@@ -1,0 +1,316 @@
+{
+  "schema_version": 1,
+  "source": "pbb-realtime-hotline-client-data",
+  "description": "Standalone Data Prep source for the PBB Hotline client profile, policies, and project scopes in PBB Realtime.",
+  "clients": [
+    {
+      "client_code": "clt_PBB_HOTLINE",
+      "project_code": "prj_PBB_HOTLINE",
+      "name": "PBB Hotline",
+      "status": "active",
+      "description": "PBB Hotline integration client for citizen, operator, command, broadcast, and server-side realtime flows.",
+      "integration_owner": "PBB Hotline",
+      "integration_notes": "Packaged reference data for Kit Setup standalone Data Prep. Secrets remain operator/Kit supplied.",
+      "issuer_identity": "hotline.pbb.ph",
+      "token_issuance_mode": "app_backend_signed",
+      "trusted_signing_profile": "hotline.pbb.ph",
+      "trust_notes": "Hotline backend issues Realtime JWTs for the Hotline project scopes.",
+      "allowed_origins": ["https://hotline.pbb.ph"],
+      "origin_policy_mode": "allowlist",
+      "policy_profile_code": "pol_HOTLINE_OPERATOR",
+      "capability_profile_code": "hotline-operator-capabilities",
+      "room_policy_profile_code": "hotline-operator-rooms",
+      "policies": [
+        {
+          "policy_code": "pol_HOTLINE_MEDIA_INGEST",
+          "name": "Hotline Media Ingest Policy",
+          "status": "active",
+          "description": "Policy for Hotline media chunk preparation, upload, review, and downstream ingest callbacks.",
+          "policy_category": "hotline.media_ingest",
+          "owner_team": "PBB Hotline",
+          "capability_profile": {
+            "session": ["connect"],
+            "rooms": ["join", "leave"],
+            "media": ["prepare", "publish", "stream", "review", "persist"],
+            "events": ["publish"]
+          },
+          "room_policy_profile": {
+            "mode": "allowlist",
+            "prefixes": ["hotline.media.", "hotline.incident.", "chat.thread.hotline."]
+          },
+          "rate_limit_profile": {
+            "media_events_per_minute": 720,
+            "attachment_transport": {
+              "max_attachment_count": 8,
+              "max_attachment_bytes": 3145728,
+              "max_total_bytes_per_message": 10485760,
+              "chunk_events_per_minute": 720,
+              "chunk_bytes_per_minute": 18874368
+            }
+          },
+          "session_limit_profile": {
+            "max_concurrent_sessions": 4,
+            "idle_timeout_minutes": 15
+          },
+          "allow_deny_mode": "allowlist"
+        },
+        {
+          "policy_code": "pol_HOTLINE_BROADCAST",
+          "name": "Hotline Broadcast Policy",
+          "status": "active",
+          "description": "Policy for Hotline server-originated incident, roster, and operations broadcast events.",
+          "policy_category": "hotline.broadcast",
+          "owner_team": "PBB Hotline",
+          "capability_profile": {
+            "session": ["connect"],
+            "rooms": ["join", "leave", "publish"],
+            "presence": ["publish", "subscribe"],
+            "events": ["publish", "broadcast"]
+          },
+          "room_policy_profile": {
+            "mode": "allowlist",
+            "prefixes": ["hotline.broadcast.", "hotline.incident.", "hotline.dispatch.", "chat.thread.hotline."]
+          },
+          "rate_limit_profile": {
+            "event_publish_per_minute": 240,
+            "session_pings_per_minute": 60
+          },
+          "session_limit_profile": {
+            "max_concurrent_sessions": 4,
+            "idle_timeout_minutes": 15
+          },
+          "allow_deny_mode": "allowlist"
+        },
+        {
+          "policy_code": "pol_HOTLINE_CITIZEN",
+          "name": "Hotline Citizen Policy",
+          "status": "active",
+          "description": "Citizen-facing realtime policy for emergency chat, call signaling, media, and presence.",
+          "policy_category": "hotline.citizen",
+          "owner_team": "PBB Hotline",
+          "capability_profile": {
+            "session": ["connect"],
+            "rooms": ["join", "leave"],
+            "presence": ["publish", "subscribe"],
+            "chat": ["publish", "subscribe"],
+            "media": ["prepare", "publish", "stream"],
+            "call": ["signal", "reconnect"]
+          },
+          "room_policy_profile": {
+            "mode": "allowlist",
+            "prefixes": ["hotline.citizen.", "hotline.call.", "hotline.queue.", "chat.thread.hotline."]
+          },
+          "rate_limit_profile": {
+            "session_pings_per_minute": 60,
+            "call_signals_per_minute": 120,
+            "media_events_per_minute": 480,
+            "attachment_transport": {
+              "max_attachment_count": 6,
+              "max_attachment_bytes": 2097152,
+              "max_total_bytes_per_message": 6291456,
+              "chunk_events_per_minute": 480,
+              "chunk_bytes_per_minute": 12582912
+            }
+          },
+          "session_limit_profile": {
+            "max_concurrent_sessions": 2,
+            "idle_timeout_minutes": 15
+          },
+          "allow_deny_mode": "allowlist"
+        },
+        {
+          "policy_code": "pol_HOTLINE_OPERATOR",
+          "name": "Hotline Operator Policy",
+          "status": "active",
+          "description": "Operator console policy for live incident handling, chat, media review, and call signaling.",
+          "policy_category": "hotline.operator",
+          "owner_team": "PBB Hotline",
+          "capability_profile": {
+            "session": ["connect"],
+            "rooms": ["join", "leave", "publish"],
+            "presence": ["publish", "subscribe"],
+            "chat": ["publish", "subscribe"],
+            "media": ["prepare", "publish", "review", "persist"],
+            "call": ["signal", "answer", "transfer", "disconnect"],
+            "events": ["publish"],
+            "incidents": ["create", "update"]
+          },
+          "room_policy_profile": {
+            "mode": "allowlist",
+            "prefixes": ["hotline.operator.", "hotline.call.", "hotline.incident.", "hotline.dispatch.", "chat.thread.hotline."]
+          },
+          "rate_limit_profile": {
+            "session_pings_per_minute": 60,
+            "call_signals_per_minute": 120,
+            "media_events_per_minute": 720,
+            "attachment_transport": {
+              "max_attachment_count": 8,
+              "max_attachment_bytes": 3145728,
+              "max_total_bytes_per_message": 10485760,
+              "chunk_events_per_minute": 720,
+              "chunk_bytes_per_minute": 18874368
+            }
+          },
+          "session_limit_profile": {
+            "max_concurrent_sessions": 4,
+            "idle_timeout_minutes": 15
+          },
+          "allow_deny_mode": "allowlist"
+        },
+        {
+          "policy_code": "pol_HOTLINE_COMMAND",
+          "name": "Hotline Command Policy",
+          "status": "active",
+          "description": "Command center policy for operations monitoring, dispatch oversight, and incident broadcast.",
+          "policy_category": "hotline.command",
+          "owner_team": "PBB Hotline",
+          "capability_profile": {
+            "session": ["connect"],
+            "rooms": ["join", "leave", "publish"],
+            "presence": ["publish", "subscribe"],
+            "chat": ["publish", "subscribe"],
+            "events": ["publish", "broadcast"],
+            "incidents": ["observe", "route", "update"],
+            "command": ["monitor", "broadcast"]
+          },
+          "room_policy_profile": {
+            "mode": "allowlist",
+            "prefixes": ["hotline.command.", "hotline.dispatch.", "hotline.incident.", "hotline.broadcast.", "chat.thread.hotline."]
+          },
+          "rate_limit_profile": {
+            "session_pings_per_minute": 60,
+            "event_publish_per_minute": 240,
+            "signal_events_per_minute": 120
+          },
+          "session_limit_profile": {
+            "max_concurrent_sessions": 6,
+            "idle_timeout_minutes": 30
+          },
+          "allow_deny_mode": "allowlist"
+        }
+      ],
+      "projects": [
+        {
+          "project_code": "prj_HOTLINE_SERVER",
+          "name": "Hotline Server",
+          "status": "active",
+          "description": "Server-side Hotline project scope for backend broadcasts, media ingest, and product query forwarding.",
+          "scope_notes": "Used by Hotline backend services and Kit Data Prep integrations.",
+          "allowed_origins": [],
+          "origin_policy_mode": "no_browser",
+          "policy_profile_code": "pol_HOTLINE_BROADCAST",
+          "capability_profile_code": "hotline-server-capabilities",
+          "room_policy_profile_code": "hotline-server-rooms",
+          "media_ingest_settings": {
+            "enabled": true,
+            "binary_enabled": true,
+            "max_binary_chunk_bytes": 2097152,
+            "base_url": "https://hotline.pbb.ph",
+            "path": "/api/internal/media/chunks",
+            "auth_header": "X-Realtime-Media-Ingest-Secret",
+            "connect_timeout_seconds": 3,
+            "timeout_seconds": 10,
+            "verify_tls": true
+          },
+          "product_query_forwarding_settings": {
+            "enabled": true,
+            "base_url": "https://hotline.pbb.ph",
+            "path": "/api/internal/realtime/product-query",
+            "auth_header": "X-Realtime-Backend-Secret",
+            "allowed_events": ["product.query.request"],
+            "allowed_queries": ["hotline.incident.snapshot"],
+            "max_payload_bytes": 4096,
+            "rate_limit_per_minute": 12,
+            "connect_timeout_seconds": 3,
+            "timeout_seconds": 8,
+            "verify_tls": true
+          }
+        },
+        {
+          "project_code": "prj_HOTLINE_CITIZEN",
+          "name": "Hotline Citizen",
+          "status": "active",
+          "description": "Citizen-facing Hotline project scope for emergency chat, call signaling, media, and presence.",
+          "scope_notes": "Used by public Hotline intake surfaces.",
+          "allowed_origins": ["https://hotline.pbb.ph"],
+          "origin_policy_mode": "allowlist",
+          "policy_profile_code": "pol_HOTLINE_CITIZEN",
+          "capability_profile_code": "hotline-citizen-capabilities",
+          "room_policy_profile_code": "hotline-citizen-rooms",
+          "media_ingest_settings": {
+            "enabled": true,
+            "binary_enabled": true,
+            "max_binary_chunk_bytes": 2097152,
+            "base_url": "https://hotline.pbb.ph",
+            "path": "/api/internal/media/chunks",
+            "auth_header": "X-Realtime-Media-Ingest-Secret",
+            "connect_timeout_seconds": 3,
+            "timeout_seconds": 10,
+            "verify_tls": true
+          }
+        },
+        {
+          "project_code": "prj_HOTLINE_OPERATOR",
+          "name": "Hotline Operator",
+          "status": "active",
+          "description": "Operator console project scope for live incident answer, chat, media review, and dispatch collaboration.",
+          "scope_notes": "Used by authenticated Hotline operator workspace clients.",
+          "allowed_origins": ["https://hotline.pbb.ph"],
+          "origin_policy_mode": "allowlist",
+          "policy_profile_code": "pol_HOTLINE_OPERATOR",
+          "capability_profile_code": "hotline-operator-capabilities",
+          "room_policy_profile_code": "hotline-operator-rooms",
+          "media_ingest_settings": {
+            "enabled": true,
+            "binary_enabled": true,
+            "max_binary_chunk_bytes": 3145728,
+            "base_url": "https://hotline.pbb.ph",
+            "path": "/api/internal/media/chunks",
+            "auth_header": "X-Realtime-Media-Ingest-Secret",
+            "connect_timeout_seconds": 3,
+            "timeout_seconds": 10,
+            "verify_tls": true
+          },
+          "product_query_forwarding_settings": {
+            "enabled": true,
+            "base_url": "https://hotline.pbb.ph",
+            "path": "/api/internal/realtime/product-query",
+            "auth_header": "X-Realtime-Backend-Secret",
+            "allowed_events": ["product.query.request"],
+            "allowed_queries": ["hotline.incident.snapshot"],
+            "max_payload_bytes": 4096,
+            "rate_limit_per_minute": 12,
+            "connect_timeout_seconds": 3,
+            "timeout_seconds": 8,
+            "verify_tls": true
+          }
+        },
+        {
+          "project_code": "prj_HOTLINE_COMMAND",
+          "name": "Hotline Command",
+          "status": "active",
+          "description": "Command center project scope for operations monitoring, incident broadcast, and dispatch oversight.",
+          "scope_notes": "Used by Hotline command and coordination dashboards.",
+          "allowed_origins": ["https://hotline.pbb.ph", "https://command.pbb.ph"],
+          "origin_policy_mode": "allowlist",
+          "policy_profile_code": "pol_HOTLINE_COMMAND",
+          "capability_profile_code": "hotline-command-capabilities",
+          "room_policy_profile_code": "hotline-command-rooms",
+          "product_query_forwarding_settings": {
+            "enabled": true,
+            "base_url": "https://hotline.pbb.ph",
+            "path": "/api/internal/realtime/product-query",
+            "auth_header": "X-Realtime-Backend-Secret",
+            "allowed_events": ["product.query.request"],
+            "allowed_queries": ["hotline.incident.snapshot"],
+            "max_payload_bytes": 4096,
+            "rate_limit_per_minute": 12,
+            "connect_timeout_seconds": 3,
+            "timeout_seconds": 8,
+            "verify_tls": true
+          }
+        }
+      ]
+    }
+  ]
+}

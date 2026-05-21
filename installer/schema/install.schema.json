@@ -99,7 +99,10 @@
           "additionalProperties": true,
           "properties": {
             "enabled": { "type": "boolean" },
-            "source": { "type": "string" },
+            "source": {
+              "type": "string",
+              "description": "Optional JSON source path. Defaults to resources/data/realtime/hotline-client-data.json when no explicit source or clients array is supplied."
+            },
             "clients": {
               "type": "array",
               "items": { "type": "object" }
