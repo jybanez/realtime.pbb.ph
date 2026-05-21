@@ -52,6 +52,28 @@
       }
     }
   },
+  "data_prep": {
+    "version": 1,
+    "capabilities": {
+      "prepare_data": true,
+      "apply_settings": false,
+      "verify": true
+    },
+    "tools": {
+      "prepare_data": {
+        "path": "tools/populate-initial-data.php",
+        "config_section": "realtime.populate",
+        "default_source": "resources/data/realtime/hotline-client-data.json",
+        "description": "Prepare the PBB Hotline Realtime client profile, policies, and project scopes."
+      },
+      "verify": {
+        "path": "tools/data-prep/verify.php",
+        "config_section": "realtime.data_prep.verify",
+        "default_source": "resources/data/realtime/hotline-client-data.json",
+        "description": "Verify the PBB Hotline Realtime client profile, policies, and project scopes."
+      }
+    }
+  },
   "health": {
     "http": "/api/health",
     "ready": "/api/ready",
