@@ -2,12 +2,12 @@
 
 ## Goal
 
-Expose `php artisan realtime:serve` to `PBB Maestro` as one monitored worker identity so operators can see whether the websocket daemon is started, fresh, stale, or stopped.
+Expose Realtime runtime services to `PBB Maestro` as monitored worker identities so operators can see whether the websocket daemon and media dispatcher are started, fresh, stale, or stopped.
 
 ## Scope
 
-- emit `worker.started` on daemon boot
-- emit worker heartbeats on a fixed interval while the daemon is alive
+- emit `worker.started` on process boot
+- emit worker heartbeats while the process is alive
 - emit `worker.stopped` on clean shutdown when possible
 - reuse Maestro's existing telemetry endpoints and token contract
 - keep Maestro as observability only, not process control
@@ -26,12 +26,21 @@ Expose `php artisan realtime:serve` to `PBB Maestro` as one monitored worker ide
 - optional `MAESTRO_TELEMETRY_APP_CODE` defaulting to `realtime`
 - optional `MAESTRO_TELEMETRY_HEARTBEAT_SECONDS`
 - optional `MAESTRO_TELEMETRY_ENABLED`
+- optional `MAESTRO_TELEMETRY_VERIFY_TLS`
+- optional `MAESTRO_TELEMETRY_CA_BUNDLE`
+
+Kit Data Prep normally writes these values into `realtime_runtime_settings` through `tools/data-prep/apply-settings.php` instead of relying on `.env`.
 
 ## Worker Identity
 
-- generate one stable worker id per `realtime:serve` process boot
+- generate one stable worker id per process boot
 - recommended shape:
   - `realtime:serve:<host>:<pid>:<started_at>:<random_suffix>`
+
+Current roles:
+
+- `realtime:serve`: `websocket-gateway`
+- `realtime:dispatch`: `media-chunk-dispatcher`
 
 ## Payload Shape
 
@@ -73,7 +82,8 @@ Lifecycle event payload:
 - add config entries for Maestro telemetry settings
 - create a daemon runtime state object for worker id, host, pid, counters, and timestamps
 - wire `worker.started` before entering the Ratchet loop
-- wire periodic heartbeat emission on the React loop
+- wire periodic heartbeat emission on the React loop for `realtime:serve`
+- wire dispatcher heartbeat emission inside the media dispatch loop for `realtime:dispatch`
 - wire `worker.stopped` on clean shutdown or signal handling where available
 - keep failures non-fatal to the websocket daemon
 - log telemetry failures locally for operator diagnosis
@@ -85,8 +95,9 @@ Lifecycle event payload:
 - daemon shutdown emits `worker.stopped` when possible
 - telemetry failure does not crash `realtime:serve`
 - Maestro shows the daemon under app code `realtime`
+- CA-bundle-backed HTTPS telemetry succeeds on Windows/WAMP hosts where PHP/cURL does not have a usable default trust store
 
 ## Follow-up
 
-- add processed or failed counters if Realtime later wants to expose meaningful room/event throughput
-- consider separate telemetry for event-publish drain metrics if daemon visibility alone proves insufficient
+- keep Maestro heartbeat freshness verification in Maestro Data Prep Verify
+- Kit may restart both Realtime services after Data Prep Apply Settings for immediate heartbeat freshness

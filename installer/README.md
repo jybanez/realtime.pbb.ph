@@ -24,7 +24,10 @@ Current scope:
 - unattended CLI install runner under `installer/install-run.php`
 - machine-readable status output under `installer/status.php`
 - unattended config schema under `installer/schema/install.schema.json`
-- optional initial-data population tool under `tools/populate-initial-data.php`
+- standalone Data Prep tools:
+  - Prepare Data: `tools/populate-initial-data.php`
+  - Apply Settings: `tools/data-prep/apply-settings.php`
+  - Verify: `tools/data-prep/verify.php`
 - scaffolded validation actions
 - generated report/log artifacts
 - packaged acceptance validation through admin login, sandbox admission, websocket connect, room join, presence publish, and chat publish
@@ -45,12 +48,14 @@ Successful acceptance runs remove extracted `acceptance-*` folders automatically
 
 Installer ZIP builds intentionally package only the production Helper runtime from `public/vendor/helpers.pbb.ph`: the rebuilt `dist` bundle, `js/ui/ui.loader.js`, `js/vendor/marked.esm.js`, direct CSS dependencies, and `boot.*.json` metadata. Helper demos, docs, samples, tests, scripts, `.git`, `node_modules`, and other non-runtime files are excluded from release packages.
 
-Installer ZIP builds also exclude local package-builder and acceptance tooling such as `installer/build-installer.ps1`, `installer/test-installer-bundle.ps1`, public test/demo pages, CI scaffolding, repository tests, database factories, and database seeders. The generated ZIP keeps Kit-facing installer docs and runtime files, and its bundled `release.json` is stamped with build metadata using the `v{milestone}-{version}` display version convention. Optional data loading should use the declared `populate_initial_data` tool under `release.json` for Kit Data Prep, not Laravel database seeders.
+Installer ZIP builds also exclude local package-builder and acceptance tooling such as `installer/build-installer.ps1`, `installer/test-installer-bundle.ps1`, public test/demo pages, CI scaffolding, repository tests, database factories, and database seeders. The generated ZIP keeps Kit-facing installer docs and runtime files, and its bundled `release.json` is stamped with build metadata using the `v{milestone}-{version}` display version convention. Optional data loading should use the declared Data Prep tools under `release.json`, not Laravel database seeders.
 
 Optional initial data can be populated after install with:
 
 ```powershell
 php tools/populate-initial-data.php --config installer/docs/realtime-populate.sample.json --report storage/app/installer/realtime-populate-report.json --dry-run
 ```
+
+The current Data Prep contract is documented in `docs/pbb-realtime-data-prep-contract.md`. Realtime's packaged Prepare Data source defaults to `resources/data/realtime/hotline-client-data.json`. Apply Settings stores Maestro telemetry settings, including optional CA bundle path, in encrypted runtime settings. Verify checks Hotline records and Maestro telemetry settings without exposing raw secrets.
 
 The scaffold exists to stabilize the operator flow and backend contract before wiring the real installer actions.

@@ -12,8 +12,9 @@ Get a hub-local PBB Realtime deployment running through the browser-based instal
 4. run environment checks
 5. complete configuration
 6. run install
-7. run validation
-8. finish any remaining manual tasks
+7. run validation and smoke checks
+8. run standalone Data Prep when the installed app set is ready
+9. finish any remaining manual tasks
 
 ## Required Inputs
 
@@ -23,6 +24,7 @@ Get a hub-local PBB Realtime deployment running through the browser-based instal
 - trusted issuers
 - public websocket URL
 - first admin password collected by Kit Setup
+- Kit-provided MySQL binary for baseline schema loading when running under Kit
 
 ## Current Installer Scope
 
@@ -32,14 +34,17 @@ The current installer already handles:
 - preflight checks
 - `.env` writing
 - `APP_KEY` generation
-- database migrations
+- baseline schema import for fresh installs
+- migrations retained for bounded upgrade/repair paths
 - initial admin bootstrap
   - defaults to `PBB Administrator` / `admin@pbb.local`
   - creates the account only when missing unless `admin.overwrite_existing=true`
   - rejects blank, placeholder, or weak passwords
 - install manifest and report generation
 - Windows/Linux Ratchet service artifact generation
-- optional service registration when permissions and service manager allow it
+- Kit-managed runtime service metadata for:
+  - `pbb-realtime-websocket`
+  - `pbb-realtime-media-dispatcher`
 - packaged installer acceptance through admin login, sandbox admission, websocket connect, room join, presence publish, and chat publish
 - Kit Setup-facing release metadata, unattended CLI install, status output, and config schema
 
@@ -66,13 +71,22 @@ Machine-readable status is available with:
 C:/wamp64/bin/php/php8.2.29/php.exe installer/status.php
 ```
 
-Optional first-run Realtime data population is exposed as a Kit Setup tool:
+Realtime Data Prep is exposed as standalone Kit workflow tooling, separate from Setup install. Prepare Data can be dry-run with:
 
 ```powershell
 C:/wamp64/bin/php/php8.2.29/php.exe tools/populate-initial-data.php --config installer/docs/realtime-populate.sample.json --report storage/app/installer/realtime-populate-report.json --dry-run
 ```
 
-The population tool is intentionally separate from install. It can upsert clients, project scopes, policies, media ingest settings, product-query forwarding settings, and backend ingress secret digests when Kit Setup explicitly enables it.
+The population tool defaults to `resources/data/realtime/hotline-client-data.json` when no explicit source or clients array is configured. It prepares the Hotline client, 5 policies, and 4 project scopes.
+
+Data Prep also includes:
+
+- Apply Settings: `tools/data-prep/apply-settings.php`
+- Verify: `tools/data-prep/verify.php`
+
+Apply Settings persists Maestro telemetry settings into `realtime_runtime_settings`, including the telemetry token and optional CA bundle path supplied by Kit. Reports must remain secret-safe.
+
+See [pbb-realtime-data-prep-contract.md](pbb-realtime-data-prep-contract.md) for the current Data Prep contract.
 
 ## Validation Target
 
@@ -81,4 +95,6 @@ The install should be considered usable only after:
 - admin login works
 - `/api/health` and `/api/ready` are reachable
 - `/admin/sandbox` can connect successfully
+- Kit starts `pbb-realtime-websocket` and `pbb-realtime-media-dispatcher`
+- Data Prep Verify reports the Hotline records and Maestro telemetry settings as present when Data Prep is run
 

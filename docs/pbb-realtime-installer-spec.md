@@ -39,7 +39,7 @@ After a successful run, the target host must contain:
 - deployed PBB Realtime application files
 - valid `.env`
 - generated `APP_KEY`
-- migrated database schema
+- baseline database schema for fresh installs
 - seeded admin account or bootstrap admin credentials
 - registered Ratchet runtime startup configuration
 - installation log
@@ -185,8 +185,9 @@ The browser UI must show these checks individually with:
 
 ### 3. Database initialization
 
-- run migrations
-- optionally run seeders
+- import `database/schema/mysql-schema.sql` for fresh installs
+- retain migrations for bounded upgrade and repair paths
+- do not run Laravel seeders in Kit bundles
 - verify required tables exist
 
 ### 4. Admin bootstrap
@@ -194,23 +195,16 @@ The browser UI must show these checks individually with:
 - create initial admin user if none exists
 - record bootstrap outcome in install report
 
-### 5. Ratchet registration artifact
+### 5. Runtime Services
 
-Register the websocket runtime equivalent to:
+Declare Kit-managed runtime services in `release.json`:
 
-```powershell
-php artisan realtime:serve
-```
+- `pbb-realtime-websocket`: `php artisan realtime:serve`
+- `pbb-realtime-media-dispatcher`: `php artisan realtime:dispatch`
 
-The installer must persist and generate:
+The installer report and manifest must repeat the resolved `runtime_services` array, including working directory, PHP command, args, environment, health checks, and log paths.
 
-- executable path
-- working directory
-- restart strategy
-- log path
-- OS-specific service artifact:
-  - Windows PowerShell/service registration helper
-  - Linux `systemd` unit template
+Kit starts and verifies these services. Realtime remains responsible for the app-owned command behavior.
 
 ### 6. Validation
 
@@ -222,7 +216,21 @@ Run:
 - websocket runtime local reachability
 - admin login check
 
-### 7. Report
+### 7. Standalone Data Prep
+
+Data Prep is not part of normal Setup install. It runs after installed apps and smoke checks are ready.
+
+Realtime declares:
+
+- Prepare Data: `tools/populate-initial-data.php`
+- Apply Settings: `tools/data-prep/apply-settings.php`
+- Verify: `tools/data-prep/verify.php`
+
+Prepare Data creates/upserts Hotline client records from `resources/data/realtime/hotline-client-data.json` by default. Apply Settings writes Maestro telemetry settings into encrypted runtime settings. Verify checks Hotline records and Maestro telemetry settings.
+
+See `docs/pbb-realtime-data-prep-contract.md`.
+
+### 8. Report
 
 Emit:
 
@@ -259,6 +267,7 @@ Some environments may still require manual completion. The installer must print 
 - TLS certificate binding
 - firewall opening for public HTTP/HTTPS
 - DNS mapping
+- Kit Setup `setup.exe` rebuild after any app bundle or Data Prep contract change
 
 The installer should not silently assume these are done.
 
@@ -302,7 +311,21 @@ Suggested fields:
     "allowed_origins": [
       "https://hq.pbb.ph",
       "https://workspace.pbb.ph"
-    ]
+    ],
+    "data_prep": {
+      "apply_settings": {
+        "maestro": {
+          "enabled": true,
+          "base_url": "https://maestro.pbb.ph",
+          "app_code": "realtime",
+          "telemetry_token": "replace-with-kit-generated-token",
+          "tls_verify": true,
+          "ca_bundle": "C:\\pbb\\kit\\certs\\cacert.pem",
+          "connect_timeout_seconds": 3,
+          "timeout_seconds": 5
+        }
+      }
+    }
   },
   "admin": {
     "strategy": "create_if_missing",
