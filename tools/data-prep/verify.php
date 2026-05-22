@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\RealtimeClient;
 use App\Models\RealtimePolicy;
 use App\Models\RealtimeProject;
+use App\Realtime\Settings\RealtimeRuntimeSettings;
 use Illuminate\Contracts\Console\Kernel;
 
 const REALTIME_DATA_PREP_VERIFY_VERSION = '1.0.0';
@@ -153,6 +154,49 @@ function add_result(array &$report, string $id, string $type, int $expected, int
     ];
 }
 
+function bool_value(mixed $value): ?bool
+{
+    if ($value === null || $value === '') {
+        return null;
+    }
+
+    return filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+}
+
+function string_value(mixed $value): ?string
+{
+    if (! is_string($value)) {
+        return null;
+    }
+
+    $value = trim($value);
+
+    return $value !== '' ? $value : null;
+}
+
+function expected_maestro_settings(array $config): ?array
+{
+    $maestro = $config['realtime']['data_prep']['apply_settings']['maestro'] ?? null;
+    if (! is_array($maestro)) {
+        $maestro = $config['realtime']['data_prep']['verify']['maestro'] ?? null;
+    }
+    if (! is_array($maestro)) {
+        return null;
+    }
+
+    $enabled = bool_value($maestro['enabled'] ?? null);
+    if ($enabled !== true) {
+        return null;
+    }
+
+    return [
+        'enabled' => true,
+        'base_url' => string_value($maestro['base_url'] ?? null),
+        'app_code' => string_value($maestro['app_code'] ?? null) ?? 'realtime',
+        'token_expected' => string_value($maestro['telemetry_token'] ?? ($maestro['token'] ?? null)) !== null,
+    ];
+}
+
 $args = parse_args($argv);
 $startedAt = date(DATE_ATOM);
 $configPath = is_string($args['config']) ? $args['config'] : '';
@@ -223,6 +267,42 @@ try {
     add_result($report, 'hotline_clients', 'client_profile', count($clientCodes), count($foundClientCodes), array_values(array_diff($clientCodes, $foundClientCodes)));
     add_result($report, 'hotline_policies', 'policy_profile', count($policyCodes), count($foundPolicyCodes), array_values(array_diff($policyCodes, $foundPolicyCodes)));
     add_result($report, 'hotline_projects', 'project_scope', count($projectCodes), count($foundProjectCodes), array_values(array_diff($projectCodes, $foundProjectCodes)));
+
+    $expectedMaestro = expected_maestro_settings($config);
+    if ($expectedMaestro !== null) {
+        $actualMaestro = $app->make(RealtimeRuntimeSettings::class)->maestroTelemetry();
+        $missing = [];
+        if (($actualMaestro['enabled'] ?? false) !== true) {
+            $missing[] = 'maestro_telemetry_enabled';
+        }
+        if ($expectedMaestro['base_url'] !== null && ($actualMaestro['base_url'] ?? null) !== $expectedMaestro['base_url']) {
+            $missing[] = 'maestro_base_url';
+        }
+        if (($actualMaestro['app_code'] ?? null) !== $expectedMaestro['app_code']) {
+            $missing[] = 'maestro_telemetry_app_code';
+        }
+        if ($expectedMaestro['token_expected'] && ($actualMaestro['token_configured'] ?? false) !== true) {
+            $missing[] = 'maestro_telemetry_token';
+        }
+
+        $report['results'][] = [
+            'id' => 'maestro_telemetry_settings',
+            'type' => 'runtime_settings',
+            'action' => 'verify',
+            'status' => $missing === [] ? 'success' : 'failed',
+            'expected' => 1,
+            'found' => $missing === [] ? 1 : 0,
+            'missing' => count($missing),
+            'failed' => count($missing),
+            'missing_keys' => $missing,
+            'settings' => [
+                'enabled' => (bool) ($actualMaestro['enabled'] ?? false),
+                'base_url' => (string) ($actualMaestro['base_url'] ?? ''),
+                'app_code' => (string) ($actualMaestro['app_code'] ?? ''),
+                'token_configured' => (bool) ($actualMaestro['token_configured'] ?? false),
+            ],
+        ];
+    }
 
     $failed = array_sum(array_column($report['results'], 'failed'));
     $report = finish_report(

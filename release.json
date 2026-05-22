@@ -56,7 +56,7 @@
     "version": 1,
     "capabilities": {
       "prepare_data": true,
-      "apply_settings": false,
+      "apply_settings": true,
       "verify": true
     },
     "tools": {
@@ -65,6 +65,11 @@
         "config_section": "realtime.populate",
         "default_source": "resources/data/realtime/hotline-client-data.json",
         "description": "Prepare the PBB Hotline Realtime client profile, policies, and project scopes."
+      },
+      "apply_settings": {
+        "path": "tools/data-prep/apply-settings.php",
+        "config_section": "realtime.data_prep.apply_settings",
+        "description": "Apply Realtime runtime settings supplied by Kit Data Prep, including Maestro telemetry settings."
       },
       "verify": {
         "path": "tools/data-prep/verify.php",
