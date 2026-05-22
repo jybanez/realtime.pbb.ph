@@ -165,6 +165,9 @@ function maestro_config(array $config): array
         'connect_timeout_seconds' => int_value($apply['connect_timeout_seconds'] ?? null) ?? 3,
         'timeout_seconds' => int_value($apply['timeout_seconds'] ?? null) ?? 5,
         'tls_verify' => bool_value($apply['tls_verify'] ?? ($apply['verify_tls'] ?? null)) ?? true,
+        'ca_bundle' => string_value($apply['ca_bundle'] ?? null)
+            ?? string_value($apply['curl_ca_bundle'] ?? null)
+            ?? string_value($apply['ssl_cert_file'] ?? null),
     ];
 }
 
@@ -189,6 +192,11 @@ function validate_maestro_config(array $maestro): array
         if ($value === null || $value < 1) {
             $errors[] = "realtime.data_prep.apply_settings.maestro.{$key} must be a positive integer.";
         }
+    }
+
+    $caBundle = string_value($maestro['ca_bundle'] ?? null);
+    if (($maestro['tls_verify'] ?? true) === true && $caBundle !== null && ! is_file($caBundle)) {
+        $errors[] = 'realtime.data_prep.apply_settings.maestro.ca_bundle must point to an existing file when supplied.';
     }
 
     return $errors;
@@ -236,6 +244,8 @@ try {
         'app_code' => string_value($maestro['app_code'] ?? null) ?? 'realtime',
         'connect_timeout_seconds' => (int) $maestro['connect_timeout_seconds'],
         'timeout_seconds' => (int) $maestro['timeout_seconds'],
+        'verify_tls' => (bool) $maestro['tls_verify'],
+        'ca_bundle' => string_value($maestro['ca_bundle'] ?? null),
     ];
 
     if (string_value($maestro['token'] ?? null) !== null) {
@@ -266,6 +276,7 @@ try {
             'connect_timeout_seconds' => (int) $maestro['connect_timeout_seconds'],
             'timeout_seconds' => (int) $maestro['timeout_seconds'],
             'tls_verify' => (bool) $maestro['tls_verify'],
+            'ca_bundle_configured' => string_value($maestro['ca_bundle'] ?? null) !== null,
             'token_supplied' => string_value($maestro['token'] ?? null) !== null,
         ],
     ];

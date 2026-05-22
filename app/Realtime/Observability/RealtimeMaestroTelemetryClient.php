@@ -62,6 +62,12 @@ class RealtimeMaestroTelemetryClient
         $handlerStats = [];
 
         try {
+            $verify = (bool) ($config['verify_tls'] ?? true);
+            $caBundle = $this->stringValue($config['ca_bundle'] ?? null);
+            if ($verify && $caBundle !== null && is_file($caBundle)) {
+                $verify = $caBundle;
+            }
+
             $response = Http::acceptJson()
                 ->withHeaders(array_filter([
                     $tokenHeader => $token,
@@ -70,7 +76,7 @@ class RealtimeMaestroTelemetryClient
                 ->connectTimeout((int) ($config['connect_timeout_seconds'] ?? 3))
                 ->timeout((int) ($config['timeout_seconds'] ?? 5))
                 ->withOptions([
-                    'verify' => (bool) ($config['verify_tls'] ?? true),
+                    'verify' => $verify,
                     'on_stats' => static function (TransferStats $stats) use (&$handlerStats): void {
                         $handlerStats = $stats->getHandlerStats();
                     },
@@ -99,6 +105,8 @@ class RealtimeMaestroTelemetryClient
                 'timing' => $this->normalizeHandlerStats($handlerStats),
                 'connect_timeout_seconds' => (int) ($config['connect_timeout_seconds'] ?? 3),
                 'timeout_seconds' => (int) ($config['timeout_seconds'] ?? 5),
+                'verify_tls' => (bool) ($config['verify_tls'] ?? true),
+                'ca_bundle_configured' => $this->stringValue($config['ca_bundle'] ?? null) !== null,
             ]);
         }
     }

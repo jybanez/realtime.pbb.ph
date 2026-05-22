@@ -194,6 +194,7 @@ function expected_maestro_settings(array $config): ?array
         'base_url' => string_value($maestro['base_url'] ?? null),
         'app_code' => string_value($maestro['app_code'] ?? null) ?? 'realtime',
         'token_expected' => string_value($maestro['telemetry_token'] ?? ($maestro['token'] ?? null)) !== null,
+        'ca_bundle_expected' => string_value($maestro['ca_bundle'] ?? ($maestro['curl_ca_bundle'] ?? null)) !== null,
     ];
 }
 
@@ -284,6 +285,9 @@ try {
         if ($expectedMaestro['token_expected'] && ($actualMaestro['token_configured'] ?? false) !== true) {
             $missing[] = 'maestro_telemetry_token';
         }
+        if ($expectedMaestro['ca_bundle_expected'] && string_value($actualMaestro['ca_bundle'] ?? null) === null) {
+            $missing[] = 'maestro_telemetry_ca_bundle';
+        }
 
         $report['results'][] = [
             'id' => 'maestro_telemetry_settings',
@@ -300,6 +304,8 @@ try {
                 'base_url' => (string) ($actualMaestro['base_url'] ?? ''),
                 'app_code' => (string) ($actualMaestro['app_code'] ?? ''),
                 'token_configured' => (bool) ($actualMaestro['token_configured'] ?? false),
+                'verify_tls' => (bool) ($actualMaestro['verify_tls'] ?? true),
+                'ca_bundle_configured' => string_value($actualMaestro['ca_bundle'] ?? null) !== null,
             ],
         ];
     }

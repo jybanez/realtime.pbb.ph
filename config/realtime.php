@@ -57,5 +57,6 @@ return [
         'connect_timeout_seconds' => max(1, (int) env('MAESTRO_TELEMETRY_CONNECT_TIMEOUT_SECONDS', 3)),
         'timeout_seconds' => max(1, (int) env('MAESTRO_TELEMETRY_TIMEOUT_SECONDS', 5)),
         'verify_tls' => filter_var(env('MAESTRO_TELEMETRY_VERIFY_TLS', true), FILTER_VALIDATE_BOOL),
+        'ca_bundle' => trim((string) env('MAESTRO_TELEMETRY_CA_BUNDLE', '')),
     ],
 ];

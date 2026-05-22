@@ -14,6 +14,8 @@ class RealtimeRuntimeSettings
         'app_code' => 'maestro_telemetry_app_code',
         'connect_timeout_seconds' => 'maestro_telemetry_connect_timeout_seconds',
         'timeout_seconds' => 'maestro_telemetry_timeout_seconds',
+        'verify_tls' => 'maestro_telemetry_verify_tls',
+        'ca_bundle' => 'maestro_telemetry_ca_bundle',
     ];
 
     /**
@@ -30,6 +32,8 @@ class RealtimeRuntimeSettings
         $appCode = $this->stringValue($stored[self::MAESTRO_KEYS['app_code']] ?? null);
         $connectTimeoutSeconds = $this->intValue($stored[self::MAESTRO_KEYS['connect_timeout_seconds']] ?? null);
         $timeoutSeconds = $this->intValue($stored[self::MAESTRO_KEYS['timeout_seconds']] ?? null);
+        $verifyTls = $this->boolValue($stored[self::MAESTRO_KEYS['verify_tls']] ?? null);
+        $caBundle = $this->stringValue($stored[self::MAESTRO_KEYS['ca_bundle']] ?? null);
 
         return [
             'enabled' => $enabled ?? (bool) ($defaults['enabled'] ?? false),
@@ -44,7 +48,8 @@ class RealtimeRuntimeSettings
             'heartbeat_seconds' => (int) ($defaults['heartbeat_seconds'] ?? 15),
             'connect_timeout_seconds' => $connectTimeoutSeconds ?? (int) ($defaults['connect_timeout_seconds'] ?? 3),
             'timeout_seconds' => $timeoutSeconds ?? (int) ($defaults['timeout_seconds'] ?? 5),
-            'verify_tls' => (bool) ($defaults['verify_tls'] ?? true),
+            'verify_tls' => $verifyTls ?? (bool) ($defaults['verify_tls'] ?? true),
+            'ca_bundle' => $caBundle ?? $this->stringValue($defaults['ca_bundle'] ?? null),
         ];
     }
 
@@ -59,6 +64,8 @@ class RealtimeRuntimeSettings
             self::MAESTRO_KEYS['app_code'] => $this->stringValue($values['app_code'] ?? null),
             self::MAESTRO_KEYS['connect_timeout_seconds'] => $this->intStringValue($values['connect_timeout_seconds'] ?? null),
             self::MAESTRO_KEYS['timeout_seconds'] => $this->intStringValue($values['timeout_seconds'] ?? null),
+            self::MAESTRO_KEYS['verify_tls'] => isset($values['verify_tls']) ? ($values['verify_tls'] ? '1' : '0') : null,
+            self::MAESTRO_KEYS['ca_bundle'] => $this->stringValue($values['ca_bundle'] ?? null),
         ];
 
         foreach ($updates as $key => $value) {
