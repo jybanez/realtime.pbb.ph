@@ -23,10 +23,7 @@
     "public_websocket_url": "wss://realtime.hub-a.pbb.ph/realtime",
     "ws_bind_address": "127.0.0.1",
     "ws_port": 8080,
-    "allowed_origins": [
-      "https://hq.pbb.ph",
-      "https://workspace.pbb.ph"
-    ]
+    "allowed_origins": []
   },
   "admin": {
     "strategy": "create_if_missing",

@@ -51,14 +51,13 @@ class RealtimeServeCommand extends Command
         $bindAddress = (string) ($this->option('host') ?: config('realtime.ws_bind_address', config('realtime.ws_host', '127.0.0.1')));
         $publicHost = (string) config('realtime.ws_public_host', 'localhost');
         $port = (int) ($this->option('port') ?: config('realtime.ws_port', 8080));
-        $allowedOrigins = config('realtime.allowed_origins', []);
         $loop = LoopFactory::create();
 
         $this->logBootStage('boot.config.loaded', [
             'bind_address' => $bindAddress,
             'public_host' => $publicHost,
             'port' => $port,
-            'allowed_origins_count' => is_array($allowedOrigins) ? count($allowedOrigins) : 0,
+            'route_origin_policy' => 'disabled',
         ]);
 
         if (extension_loaded('xdebug') && getenv('RATCHET_DISABLE_XDEBUG_WARN') === false) {
@@ -112,10 +111,11 @@ class RealtimeServeCommand extends Command
         $app->route(
             '/realtime',
             $gateway,
-            is_array($allowedOrigins) ? $allowedOrigins : []
+            ['*']
         );
         $this->logBootStage('boot.websocket_route.registered', [
             'path' => '/realtime',
+            'origin_policy' => 'application-auth',
         ]);
 
         $processTelemetry->start();

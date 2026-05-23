@@ -10,7 +10,7 @@ Track the minimum production setup required to run the current Ratchet websocket
 - [ ] Confirm `REALTIME_TRUSTED_ISSUERS` is set in production
 - [ ] Confirm `REALTIME_TOKEN_AUDIENCE` matches the expected client audience
 - [ ] Confirm `REALTIME_PUBLIC_WEBSOCKET_URL` points to the real public websocket endpoint
-- [ ] Confirm `REALTIME_ALLOWED_ORIGINS` is configured for the deployed browser origins when origin restriction is required
+- [ ] Confirm browser clients receive valid realtime tokens; Ratchet route-level origin filtering is disabled and client domains should not be listed globally in `.env`
 - [ ] Confirm `REALTIME_WS_HOST` and `REALTIME_WS_PORT` match the local Ratchet bind target
 
 ## Process Management

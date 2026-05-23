@@ -15,6 +15,17 @@
   "release_date": "2026-05-15",
   "release_name": "Kit Setup Installer Contract",
   "type": "laravel",
+  "update": {
+    "contract_version": 1,
+    "channel": "testing",
+    "immutable_release": false,
+    "from_versions": ["1.0.0"],
+    "compatibility": "same-version-rebuild",
+    "requires_database_migration": false,
+    "requires_data_prep_rerun": true,
+    "requires_service_restart": true,
+    "rollback_supported": true
+  },
   "requires": {
     "os": ["windows", "linux"],
     "php": ">=8.1",

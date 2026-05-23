@@ -62,10 +62,10 @@ Relevant runtime settings include:
 - `REALTIME_WS_BIND_ADDRESS`
 - `REALTIME_WS_PUBLIC_HOST`
 - `REALTIME_WS_PORT`
-- `REALTIME_ALLOWED_ORIGINS`
 
 Important runtime boundary:
 
+- The Ratchet route-level origin allowlist is disabled intentionally. Browser admission is governed by signed realtime tokens, capabilities, room policy, and client/project policy instead of a global `.env` domain list.
 - Room membership and presence rosters are held in memory inside the running `realtime:serve` process.
 - Backend-published events and media chunk outcomes are persisted as pending database rows, then drained by the running gateway into connected rooms.
 - If `realtime:serve` is stopped, HTTP event publish can still accept and queue work, but connected clients will not receive those events until a gateway process is running and draining.

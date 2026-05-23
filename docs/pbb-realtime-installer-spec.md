@@ -116,7 +116,8 @@ The installer must collect or accept:
 - `REALTIME_WS_HOST`
 - `REALTIME_WS_BIND_ADDRESS`
 - `REALTIME_WS_PORT`
-- `REALTIME_ALLOWED_ORIGINS`
+
+`REALTIME_ALLOWED_ORIGINS` is retained as a legacy/metadata setting, but the websocket daemon does not use Ratchet route-level origin filtering. Browser access is controlled by Realtime token admission and client/project policy, so installers must not grow this value with every client domain.
 
 ### Admin Bootstrap
 

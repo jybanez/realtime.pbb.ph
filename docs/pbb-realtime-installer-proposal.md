@@ -93,7 +93,7 @@ The installer should own:
   - `REALTIME_PUBLIC_WEBSOCKET_URL`
   - `REALTIME_WS_BIND_ADDRESS`
   - `REALTIME_WS_PORT`
-  - `REALTIME_ALLOWED_ORIGINS`
+  - `REALTIME_ALLOWED_ORIGINS` remains optional metadata; do not use it as a global browser-client domain list.
 - database connectivity test
 - database migration
 - optional seed/admin bootstrap

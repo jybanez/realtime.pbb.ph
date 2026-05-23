@@ -69,7 +69,7 @@
           },
           "room_policy_profile": {
             "mode": "allowlist",
-            "prefixes": ["hotline.broadcast.", "hotline.incident.", "hotline.dispatch.", "chat.thread.hotline."]
+            "prefixes": ["hotline.broadcast.", "hotline.incident.", "hotline.dispatch.", "hotline.settings.", "hotline.media.incident.", "chat.thread.hotline."]
           },
           "rate_limit_profile": {
             "event_publish_per_minute": 240,

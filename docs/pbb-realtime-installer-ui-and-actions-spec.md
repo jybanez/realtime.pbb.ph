@@ -133,7 +133,7 @@ Fields:
 - `REALTIME_PUBLIC_WEBSOCKET_URL`
 - `REALTIME_WS_BIND_ADDRESS`
 - `REALTIME_WS_PORT`
-- `REALTIME_ALLOWED_ORIGINS`
+- `REALTIME_ALLOWED_ORIGINS` optional metadata only; browser access is token-authenticated, not globally domain-allowlisted.
 
 Required UI:
 

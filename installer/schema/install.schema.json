@@ -85,6 +85,7 @@
         "ws_bind_address": { "type": "string", "minLength": 1 },
         "ws_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
         "allowed_origins": {
+          "description": "Legacy/metadata setting only. Ratchet route-level origin filtering is disabled; browser access is governed by token admission and Realtime client/project policy.",
           "oneOf": [
             { "type": "string" },
             { "type": "array", "items": { "type": "string" } }
