@@ -219,6 +219,23 @@ class RealtimeMediaChunkDispatcherTest extends TestCase
         $this->assertArrayNotHasKey('chunk_data', $fields);
     }
 
+    public function test_media_chunk_forwarder_uses_configured_ca_bundle_for_tls_verification(): void
+    {
+        $forwarder = new RealtimeMediaChunkForwarder();
+        $method = new \ReflectionMethod($forwarder, 'verifyOption');
+        $method->setAccessible(true);
+
+        $this->assertSame('C:/wamp64/www/pbb/kit-setup/assets/certs/cacert.pem', $method->invoke($forwarder, [
+            'verify_tls' => true,
+            'ca_bundle' => 'C:/wamp64/www/pbb/kit-setup/assets/certs/cacert.pem',
+        ]));
+        $this->assertTrue($method->invoke($forwarder, ['verify_tls' => true]));
+        $this->assertFalse($method->invoke($forwarder, [
+            'verify_tls' => false,
+            'ca_bundle' => 'C:/wamp64/www/pbb/kit-setup/assets/certs/cacert.pem',
+        ]));
+    }
+
     public function test_it_keeps_forwarded_status_when_outcome_publish_throws_after_downstream_accepts(): void
     {
         Http::fake([

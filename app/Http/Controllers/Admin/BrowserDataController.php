@@ -683,6 +683,7 @@ class BrowserDataController extends Controller
             'connect_timeout_seconds' => (int) ($settings['connect_timeout_seconds'] ?? 3),
             'timeout_seconds' => (int) ($settings['timeout_seconds'] ?? 10),
             'verify_tls' => (bool) ($settings['verify_tls'] ?? true),
+            'ca_bundle' => (string) ($settings['ca_bundle'] ?? ''),
             'binary_enabled' => (bool) ($settings['binary_enabled'] ?? false),
             'max_binary_chunk_bytes' => (int) ($settings['max_binary_chunk_bytes'] ?? config('realtime.media_chunk_binary_max_bytes', 2 * 1024 * 1024)),
         ];

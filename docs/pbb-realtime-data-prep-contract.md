@@ -62,7 +62,7 @@ The packaged source intentionally does not include raw backend ingress secrets, 
 
 ## Apply Settings
 
-`tools/data-prep/apply-settings.php` persists Maestro telemetry settings for Realtime through `RealtimeRuntimeSettings::updateMaestroTelemetry()`. Values are stored in `realtime_runtime_settings`, where `setting_value` is encrypted by the model cast.
+`tools/data-prep/apply-settings.php` persists Maestro telemetry settings for Realtime through `RealtimeRuntimeSettings::updateMaestroTelemetry()`. Values are stored in `realtime_runtime_settings`, where `setting_value` is encrypted by the model cast. The same tool can also apply TLS trust settings to project-scoped media ingest routes after Prepare Data has created the Hotline projects.
 
 Expected Kit config:
 
@@ -80,6 +80,17 @@ Expected Kit config:
           "ca_bundle": "C:/path/to/cacert.pem",
           "connect_timeout_seconds": 3,
           "timeout_seconds": 5
+        },
+        "media_ingest": {
+          "enabled": true,
+          "project_codes": [
+            "prj_HOTLINE_SERVER",
+            "prj_HOTLINE_CITIZEN",
+            "prj_HOTLINE_OPERATOR"
+          ],
+          "base_url": "https://hotline.pbb.ph",
+          "tls_verify": true,
+          "ca_bundle": "C:/path/to/cacert.pem"
         }
       }
     }
@@ -89,7 +100,7 @@ Expected Kit config:
 
 Token fallback keys are also accepted from `secrets.values.maestro_realtime_telemetry_token` or `secrets.values.realtime_maestro_telemetry_token`.
 
-CA bundle aliases:
+CA bundle aliases for Maestro telemetry and media ingest:
 
 - `ca_bundle`
 - `curl_ca_bundle`
@@ -105,6 +116,7 @@ Reports are secret-safe. They expose `token_supplied`, `secret_refs`, `tls_verif
 - all 5 Hotline policies exist
 - all 4 Hotline project scopes exist
 - Maestro telemetry settings exist when Maestro apply/verify config is present
+- media ingest project routes have a CA bundle when media ingest apply/verify config is present
 
 Maestro telemetry verification confirms:
 
@@ -152,6 +164,31 @@ Realtime telemetry uses Guzzle/Laravel HTTP to reach Maestro. On Windows hosts, 
 ```
 
 Realtime persists that path as `maestro_telemetry_ca_bundle` and passes it to Guzzle as the `verify` option. Avoid disabling TLS verification except as a controlled local setup fallback.
+
+Realtime media chunk forwarding also uses Laravel HTTP/Guzzle. For Hotline ingest over `https://hotline.pbb.ph`, Kit should pass the same trusted CA bundle through Data Prep Apply Settings:
+
+```json
+{
+  "realtime": {
+    "data_prep": {
+      "apply_settings": {
+        "media_ingest": {
+          "project_codes": [
+            "prj_HOTLINE_SERVER",
+            "prj_HOTLINE_CITIZEN",
+            "prj_HOTLINE_OPERATOR"
+          ],
+          "base_url": "https://hotline.pbb.ph",
+          "tls_verify": true,
+          "ca_bundle": "C:/wamp64/www/pbb/kit-setup/assets/certs/cacert.pem"
+        }
+      }
+    }
+  }
+}
+```
+
+Realtime persists that path in each matching project's `media_ingest_settings.ca_bundle` and passes it to Guzzle as the `verify` option. Do not disable TLS verification for production media ingest.
 
 ## Bundle Handoff
 

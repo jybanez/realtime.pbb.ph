@@ -7968,6 +7968,7 @@ function buildProjectInitialValues(project, clientId = null) {
         media_ingest_connect_timeout_seconds: String(mediaIngest?.connect_timeout_seconds || 3),
         media_ingest_timeout_seconds: String(mediaIngest?.timeout_seconds || 10),
         media_ingest_verify_tls: mediaIngest?.verify_tls === false ? "0" : "1",
+        media_ingest_ca_bundle: mediaIngest?.ca_bundle || "",
         media_ingest_binary_enabled: mediaIngest?.binary_enabled ? "1" : "0",
         media_ingest_max_binary_chunk_bytes: String(mediaIngest?.max_binary_chunk_bytes || 2097152),
         product_query_forwarding_enabled: productQuery?.enabled ? "1" : "0",
@@ -8175,6 +8176,15 @@ function buildProjectFormRows(values, clientOptions = [], policyOptions = [], cl
                 visibleWhen: { media_ingest_enabled: "1" },
             },
             {
+                type: "input",
+                input: "text",
+                name: "media_ingest_ca_bundle",
+                label: "CA bundle",
+                value: values.media_ingest_ca_bundle || "",
+                placeholder: "C:/path/to/cacert.pem",
+                visibleWhen: { media_ingest_enabled: "1", media_ingest_verify_tls: "1" },
+            },
+            {
                 type: "select",
                 name: "media_ingest_binary_enabled",
                 label: "Binary transport",
@@ -8365,6 +8375,7 @@ function normalizeProjectSubmission(values, clientId = null) {
     next.media_ingest_connect_timeout_seconds = Number(next.media_ingest_connect_timeout_seconds || 3) || 3;
     next.media_ingest_timeout_seconds = Number(next.media_ingest_timeout_seconds || 10) || 10;
     next.media_ingest_verify_tls = String(next.media_ingest_verify_tls || "1") === "1";
+    next.media_ingest_ca_bundle = String(next.media_ingest_ca_bundle || "").trim();
     next.media_ingest_binary_enabled = String(next.media_ingest_binary_enabled || "0") === "1";
     next.media_ingest_max_binary_chunk_bytes = Number(next.media_ingest_max_binary_chunk_bytes || 2097152) || 2097152;
     delete next.media_ingest_auth_token_configured;

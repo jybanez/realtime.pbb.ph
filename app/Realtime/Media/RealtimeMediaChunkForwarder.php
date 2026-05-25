@@ -39,7 +39,7 @@ class RealtimeMediaChunkForwarder
                 ->connectTimeout((int) ($route['connect_timeout_seconds'] ?? 3))
                 ->timeout((int) ($route['timeout_seconds'] ?? 10))
                 ->withOptions([
-                    'verify' => (bool) ($route['verify_tls'] ?? true),
+                    'verify' => $this->verifyOption($route),
                 ]);
 
             if ($binaryPath !== null && is_file($binaryPath)) {
@@ -204,5 +204,17 @@ class RealtimeMediaChunkForwarder
         }
 
         return str_starts_with($path, '/') ? $path : '/' . $path;
+    }
+
+    /**
+     * @param array<string, mixed> $route
+     */
+    private function verifyOption(array $route): bool|string
+    {
+        if ((bool) ($route['verify_tls'] ?? true) === false) {
+            return false;
+        }
+
+        return $this->stringValue($route['ca_bundle'] ?? null) ?? true;
     }
 }

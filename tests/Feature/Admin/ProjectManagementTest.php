@@ -80,6 +80,7 @@ class ProjectManagementTest extends TestCase
                 'media_ingest_connect_timeout_seconds' => 3,
                 'media_ingest_timeout_seconds' => 10,
                 'media_ingest_verify_tls' => true,
+                'media_ingest_ca_bundle' => 'C:/wamp64/www/pbb/kit-setup/assets/certs/cacert.pem',
                 'media_ingest_binary_enabled' => true,
                 'media_ingest_max_binary_chunk_bytes' => 1048576,
             ])
@@ -93,6 +94,7 @@ class ProjectManagementTest extends TestCase
         $this->assertSame('/api/internal/media/chunks', data_get($project->media_ingest_settings, 'path'));
         $this->assertSame('X-Realtime-Media-Ingest-Secret', data_get($project->media_ingest_settings, 'auth_header'));
         $this->assertSame('secret-token', data_get($project->media_ingest_settings, 'auth_token'));
+        $this->assertSame('C:/wamp64/www/pbb/kit-setup/assets/certs/cacert.pem', data_get($project->media_ingest_settings, 'ca_bundle'));
         $this->assertTrue((bool) data_get($project->media_ingest_settings, 'binary_enabled'));
         $this->assertSame(1048576, data_get($project->media_ingest_settings, 'max_binary_chunk_bytes'));
     }

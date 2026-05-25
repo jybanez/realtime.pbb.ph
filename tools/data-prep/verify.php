@@ -198,6 +198,40 @@ function expected_maestro_settings(array $config): ?array
     ];
 }
 
+function expected_media_ingest_settings(array $config): ?array
+{
+    $media = $config['realtime']['data_prep']['apply_settings']['media_ingest'] ?? null;
+    if (! is_array($media)) {
+        $media = $config['realtime']['data_prep']['verify']['media_ingest'] ?? null;
+    }
+    if (! is_array($media)) {
+        $media = $config['realtime']['data_prep']['apply_settings']['hotline_media_ingest'] ?? null;
+    }
+    if (! is_array($media)) {
+        return null;
+    }
+
+    $enabled = bool_value($media['enabled'] ?? null);
+    if ($enabled === false) {
+        return null;
+    }
+
+    $projectCodes = $media['project_codes'] ?? $media['projects'] ?? [];
+    if (is_string($projectCodes)) {
+        $projectCodes = array_values(array_filter(array_map('trim', explode(',', $projectCodes))));
+    }
+    if (! is_array($projectCodes)) {
+        $projectCodes = [];
+    }
+
+    return [
+        'project_codes' => array_values(array_filter($projectCodes, 'is_string')),
+        'base_url' => string_value($media['base_url'] ?? null),
+        'ca_bundle_expected' => string_value($media['ca_bundle'] ?? ($media['curl_ca_bundle'] ?? ($media['ssl_cert_file'] ?? null))) !== null,
+        'tls_verify' => bool_value($media['tls_verify'] ?? ($media['verify_tls'] ?? null)) ?? true,
+    ];
+}
+
 $args = parse_args($argv);
 $startedAt = date(DATE_ATOM);
 $configPath = is_string($args['config']) ? $args['config'] : '';
@@ -306,6 +340,56 @@ try {
                 'token_configured' => (bool) ($actualMaestro['token_configured'] ?? false),
                 'verify_tls' => (bool) ($actualMaestro['verify_tls'] ?? true),
                 'ca_bundle_configured' => string_value($actualMaestro['ca_bundle'] ?? null) !== null,
+            ],
+        ];
+    }
+
+    $expectedMediaIngest = expected_media_ingest_settings($config);
+    if ($expectedMediaIngest !== null) {
+        $query = RealtimeProject::query();
+        if ($expectedMediaIngest['project_codes'] !== []) {
+            $query->whereIn('project_code', $expectedMediaIngest['project_codes']);
+        }
+
+        $projects = $query->get()->filter(function (RealtimeProject $project) use ($expectedMediaIngest): bool {
+            $settings = is_array($project->media_ingest_settings) ? $project->media_ingest_settings : null;
+            if (! is_array($settings) || (bool) ($settings['enabled'] ?? false) !== true) {
+                return false;
+            }
+
+            return $expectedMediaIngest['base_url'] === null
+                || string_value($settings['base_url'] ?? null) === $expectedMediaIngest['base_url'];
+        });
+
+        $missing = [];
+        foreach ($projects as $project) {
+            $settings = is_array($project->media_ingest_settings) ? $project->media_ingest_settings : [];
+            if ((bool) ($settings['verify_tls'] ?? true) !== (bool) $expectedMediaIngest['tls_verify']) {
+                $missing[] = $project->project_code . '.media_ingest_verify_tls';
+            }
+            if ($expectedMediaIngest['ca_bundle_expected'] && string_value($settings['ca_bundle'] ?? null) === null) {
+                $missing[] = $project->project_code . '.media_ingest_ca_bundle';
+            }
+        }
+
+        if ($projects->count() === 0) {
+            $missing[] = 'media_ingest_projects';
+        }
+
+        $report['results'][] = [
+            'id' => 'media_ingest_settings',
+            'type' => 'project_scope',
+            'action' => 'verify',
+            'status' => $missing === [] ? 'success' : 'failed',
+            'expected' => count($expectedMediaIngest['project_codes']) ?: 1,
+            'found' => $projects->count(),
+            'missing' => count($missing),
+            'failed' => count($missing),
+            'missing_keys' => $missing,
+            'project_codes' => $projects->pluck('project_code')->values()->all(),
+            'settings' => [
+                'verify_tls' => (bool) $expectedMediaIngest['tls_verify'],
+                'ca_bundle_expected' => (bool) $expectedMediaIngest['ca_bundle_expected'],
             ],
         ];
     }

@@ -168,6 +168,7 @@ class ProjectController extends Controller
             'media_ingest_connect_timeout_seconds' => ['nullable', 'integer', 'min:1', 'max:60'],
             'media_ingest_timeout_seconds' => ['nullable', 'integer', 'min:1', 'max:120'],
             'media_ingest_verify_tls' => ['nullable', 'boolean'],
+            'media_ingest_ca_bundle' => ['nullable', 'string', 'max:1024'],
             'media_ingest_binary_enabled' => ['nullable', 'boolean'],
             'media_ingest_max_binary_chunk_bytes' => ['nullable', 'integer', 'min:1', 'max:104857600'],
             'product_query_forwarding_enabled' => ['nullable', 'boolean'],
@@ -199,6 +200,7 @@ class ProjectController extends Controller
             $validated['media_ingest_connect_timeout_seconds'],
             $validated['media_ingest_timeout_seconds'],
             $validated['media_ingest_verify_tls'],
+            $validated['media_ingest_ca_bundle'],
             $validated['media_ingest_binary_enabled'],
             $validated['media_ingest_max_binary_chunk_bytes'],
         );
@@ -278,6 +280,7 @@ class ProjectController extends Controller
             'verify_tls' => array_key_exists('media_ingest_verify_tls', $validated)
                 ? (bool) $validated['media_ingest_verify_tls']
                 : true,
+            'ca_bundle' => trim((string) ($validated['media_ingest_ca_bundle'] ?? ($existing['ca_bundle'] ?? ''))),
             'binary_enabled' => array_key_exists('media_ingest_binary_enabled', $validated)
                 ? (bool) $validated['media_ingest_binary_enabled']
                 : (bool) ($existing['binary_enabled'] ?? false),

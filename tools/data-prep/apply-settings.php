@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Realtime\Settings\RealtimeRuntimeSettings;
+use App\Models\RealtimeProject;
 use Illuminate\Contracts\Console\Kernel;
 
 const REALTIME_DATA_PREP_APPLY_SETTINGS_VERSION = '1.0.0';
@@ -202,6 +203,93 @@ function validate_maestro_config(array $maestro): array
     return $errors;
 }
 
+function media_ingest_config(array $config): ?array
+{
+    $apply = $config['realtime']['data_prep']['apply_settings']['media_ingest'] ?? null;
+    if (! is_array($apply)) {
+        $apply = $config['realtime']['data_prep']['apply_settings']['hotline_media_ingest'] ?? null;
+    }
+    if (! is_array($apply)) {
+        return null;
+    }
+
+    $projectCodes = $apply['project_codes'] ?? $apply['projects'] ?? null;
+    if (is_string($projectCodes)) {
+        $projectCodes = array_values(array_filter(array_map('trim', explode(',', $projectCodes))));
+    }
+    if (! is_array($projectCodes)) {
+        $projectCodes = [];
+    }
+
+    return [
+        'enabled' => bool_value($apply['enabled'] ?? null) ?? true,
+        'project_codes' => array_values(array_filter($projectCodes, 'is_string')),
+        'base_url' => string_value($apply['base_url'] ?? null),
+        'tls_verify' => bool_value($apply['tls_verify'] ?? ($apply['verify_tls'] ?? null)),
+        'ca_bundle' => string_value($apply['ca_bundle'] ?? null)
+            ?? string_value($apply['curl_ca_bundle'] ?? null)
+            ?? string_value($apply['ssl_cert_file'] ?? null),
+    ];
+}
+
+function validate_media_ingest_config(?array $mediaIngest): array
+{
+    if ($mediaIngest === null || ($mediaIngest['enabled'] ?? false) !== true) {
+        return [];
+    }
+
+    $errors = [];
+    $caBundle = string_value($mediaIngest['ca_bundle'] ?? null);
+    if (($mediaIngest['tls_verify'] ?? true) !== false && $caBundle !== null && ! is_file($caBundle)) {
+        $errors[] = 'realtime.data_prep.apply_settings.media_ingest.ca_bundle must point to an existing file when supplied.';
+    }
+
+    return $errors;
+}
+
+function apply_media_ingest_settings(array $mediaIngest, bool $dryRun): array
+{
+    $projectCodes = $mediaIngest['project_codes'] ?? [];
+    $query = RealtimeProject::query();
+
+    if ($projectCodes !== []) {
+        $query->whereIn('project_code', $projectCodes);
+    }
+
+    $projects = $query->get()->filter(function (RealtimeProject $project) use ($mediaIngest): bool {
+        $settings = is_array($project->media_ingest_settings) ? $project->media_ingest_settings : null;
+        if (! is_array($settings) || (bool) ($settings['enabled'] ?? false) !== true) {
+            return false;
+        }
+
+        $baseUrl = string_value($mediaIngest['base_url'] ?? null);
+        return $baseUrl === null || string_value($settings['base_url'] ?? null) === $baseUrl;
+    });
+
+    $updated = 0;
+    foreach ($projects as $project) {
+        $settings = is_array($project->media_ingest_settings) ? $project->media_ingest_settings : [];
+        if (($mediaIngest['tls_verify'] ?? null) !== null) {
+            $settings['verify_tls'] = (bool) $mediaIngest['tls_verify'];
+        }
+        if (string_value($mediaIngest['ca_bundle'] ?? null) !== null) {
+            $settings['ca_bundle'] = string_value($mediaIngest['ca_bundle']);
+        }
+
+        if (! $dryRun) {
+            $project->forceFill(['media_ingest_settings' => $settings])->save();
+        }
+        $updated++;
+    }
+
+    return [
+        'matched' => $projects->count(),
+        'updated' => $dryRun ? 0 : $updated,
+        'planned_updated' => $dryRun ? $updated : 0,
+        'project_codes' => $projects->pluck('project_code')->values()->all(),
+    ];
+}
+
 $args = parse_args($argv);
 $startedAt = date(DATE_ATOM);
 $configPath = is_string($args['config']) ? $args['config'] : '';
@@ -218,8 +306,9 @@ try {
     $dryRun = (bool) $args['dry_run'];
     $report = report_base($config, $mode, $dryRun, $startedAt);
     $maestro = maestro_config($config);
+    $mediaIngest = media_ingest_config($config);
 
-    $validationErrors = validate_maestro_config($maestro);
+    $validationErrors = array_merge(validate_maestro_config($maestro), validate_media_ingest_config($mediaIngest));
     foreach ($validationErrors as $error) {
         $report['errors'][] = ['id' => 'validation', 'message' => $error];
     }
@@ -290,10 +379,41 @@ try {
         'token_supplied' => string_value($maestro['token'] ?? null) !== null,
     ];
 
+    if ($mediaIngest !== null && ($mediaIngest['enabled'] ?? false) === true) {
+        if ($dryRun) {
+            require dirname(__DIR__, 2) . '/vendor/autoload.php';
+            $app = require dirname(__DIR__, 2) . '/bootstrap/app.php';
+            $kernel = $app->make(Kernel::class);
+            $kernel->bootstrap();
+        }
+
+        $mediaResult = apply_media_ingest_settings($mediaIngest, $dryRun);
+        $status = $mediaResult['matched'] > 0 ? 'success' : 'failed';
+        $report['results'][] = [
+            'id' => 'media_ingest_settings',
+            'type' => 'project_scope',
+            'action' => $dryRun ? 'plan_update' : 'update',
+            'status' => $status,
+            'expected' => count($mediaIngest['project_codes'] ?? []) ?: 1,
+            'found' => $mediaResult['matched'],
+            'updated' => $mediaResult['updated'],
+            'planned_updated' => $mediaResult['planned_updated'],
+            'failed' => $status === 'success' ? 0 : 1,
+            'project_codes' => $mediaResult['project_codes'],
+            'settings' => [
+                'tls_verify' => $mediaIngest['tls_verify'] ?? true,
+                'ca_bundle_configured' => string_value($mediaIngest['ca_bundle'] ?? null) !== null,
+            ],
+        ];
+    }
+
+    $failed = array_sum(array_column($report['results'], 'failed'));
     $report = finish_report(
         $report,
-        'success',
-        $dryRun ? 'Realtime Data Prep settings dry run completed.' : 'Realtime Data Prep settings applied.'
+        $failed > 0 ? 'failed' : 'success',
+        $failed > 0
+            ? 'Realtime Data Prep settings applied with failures.'
+            : ($dryRun ? 'Realtime Data Prep settings dry run completed.' : 'Realtime Data Prep settings applied.')
     );
 
     write_report($reportPath, $report);

@@ -112,6 +112,17 @@ function finish_report(array $report, string $status, string $summary): array
     return $report;
 }
 
+function string_value(mixed $value): ?string
+{
+    if (! is_string($value)) {
+        return null;
+    }
+
+    $value = trim($value);
+
+    return $value !== '' ? $value : null;
+}
+
 function default_source_path(): string
 {
     return dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, REALTIME_DEFAULT_SOURCE);
@@ -190,6 +201,34 @@ function attrs(array $record, array $allowed): array
     }
 
     return $out;
+}
+
+function normalize_media_ingest_settings(mixed $settings): mixed
+{
+    if (! is_array($settings)) {
+        return $settings;
+    }
+
+    $caBundle = string_value($settings['ca_bundle'] ?? null)
+        ?? string_value($settings['curl_ca_bundle'] ?? null)
+        ?? string_value($settings['ssl_cert_file'] ?? null);
+
+    unset($settings['curl_ca_bundle'], $settings['ssl_cert_file']);
+
+    if ($caBundle !== null) {
+        $settings['ca_bundle'] = $caBundle;
+    }
+
+    return $settings;
+}
+
+function normalize_project_record(array $record): array
+{
+    if (array_key_exists('media_ingest_settings', $record)) {
+        $record['media_ingest_settings'] = normalize_media_ingest_settings($record['media_ingest_settings']);
+    }
+
+    return $record;
 }
 
 function find_client(array $record): ?RealtimeClient
@@ -305,6 +344,7 @@ function find_project(RealtimeClient $client, array $record): ?RealtimeProject
 
 function upsert_project(RealtimeClient $client, array $record, bool $dryRun): array
 {
+    $record = normalize_project_record($record);
     $existing = find_project($client, $record);
     $operation = $existing ? 'updated' : 'inserted';
 
