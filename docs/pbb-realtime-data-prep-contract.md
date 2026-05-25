@@ -89,6 +89,8 @@ Expected Kit config:
             "prj_HOTLINE_OPERATOR"
           ],
           "base_url": "https://hotline.pbb.ph",
+          "auth_header": "X-Realtime-Media-Ingest-Secret",
+          "auth_token": "<plain run-scoped media ingest secret>",
           "tls_verify": true,
           "ca_bundle": "C:/path/to/cacert.pem"
         }
@@ -106,7 +108,7 @@ CA bundle aliases for Maestro telemetry and media ingest:
 - `curl_ca_bundle`
 - `ssl_cert_file`
 
-Reports are secret-safe. They expose `token_supplied`, `secret_refs`, `tls_verify`, and `ca_bundle_configured`, but never the raw telemetry token.
+Reports are secret-safe. They expose `token_supplied`, `auth_token_supplied`, `secret_refs`, `tls_verify`, and `ca_bundle_configured`, but never raw telemetry or media ingest tokens.
 
 ## Verify
 
@@ -117,6 +119,7 @@ Reports are secret-safe. They expose `token_supplied`, `secret_refs`, `tls_verif
 - all 4 Hotline project scopes exist
 - Maestro telemetry settings exist when Maestro apply/verify config is present
 - media ingest project routes have a CA bundle when media ingest apply/verify config is present
+- media ingest project routes have the expected auth header and a configured auth token when media ingest apply/verify config supplies one
 
 Maestro telemetry verification confirms:
 
@@ -179,6 +182,8 @@ Realtime media chunk forwarding also uses Laravel HTTP/Guzzle. For Hotline inges
             "prj_HOTLINE_OPERATOR"
           ],
           "base_url": "https://hotline.pbb.ph",
+          "auth_header": "X-Realtime-Media-Ingest-Secret",
+          "auth_token": "<plain run-scoped media ingest secret>",
           "tls_verify": true,
           "ca_bundle": "C:/wamp64/www/pbb/kit-setup/assets/certs/cacert.pem"
         }
@@ -188,7 +193,7 @@ Realtime media chunk forwarding also uses Laravel HTTP/Guzzle. For Hotline inges
 }
 ```
 
-Realtime persists that path in each matching project's `media_ingest_settings.ca_bundle` and passes it to Guzzle as the `verify` option. Do not disable TLS verification for production media ingest.
+Realtime persists the media ingest auth header/token and CA bundle in each matching project's `media_ingest_settings`. It passes the CA bundle to Guzzle as the `verify` option and sends the auth token using the configured header. Do not disable TLS verification for production media ingest.
 
 ## Future Media Ingest Projects
 
@@ -230,10 +235,13 @@ For every new client integration:
    - `media_ingest_settings.path`
    - `media_ingest_settings.auth_header`
    - an app/Kit supplied ingest secret
+   - `media_ingest_settings.auth_token`
    - `media_ingest_settings.verify_tls=true`
    - `media_ingest_settings.ca_bundle` when `base_url` is HTTPS and the host may not trust the certificate chain
 4. Data Prep Apply Settings must be able to update those media ingest project scopes after install. It should match by explicit `project_codes` when available, or by enabled HTTPS media ingest routes when onboarding many projects.
-5. Data Prep Verify must report every expected project as present and must report CA bundle status for each HTTPS media ingest route:
+5. Data Prep Verify must report every expected project as present and must report auth and CA bundle status for each HTTPS media ingest route:
+   - `auth_header`
+   - `auth_token_expected`
    - `ca_bundle_configured`
    - `ca_bundle_exists` when the verifier can check the installed host path
    - `verify_tls`

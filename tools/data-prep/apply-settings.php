@@ -221,10 +221,22 @@ function media_ingest_config(array $config): ?array
         $projectCodes = [];
     }
 
+    $secrets = $config['secrets']['values'] ?? [];
+    if (! is_array($secrets)) {
+        $secrets = [];
+    }
+
+    $authToken = string_value($apply['auth_token'] ?? null)
+        ?? string_value($apply['media_ingest_secret'] ?? null)
+        ?? string_value($secrets['realtime_media_ingest_secret'] ?? null)
+        ?? string_value($secrets['hotline_media_ingest_secret'] ?? null);
+
     return [
         'enabled' => bool_value($apply['enabled'] ?? null) ?? true,
         'project_codes' => array_values(array_filter($projectCodes, 'is_string')),
         'base_url' => string_value($apply['base_url'] ?? null),
+        'auth_header' => string_value($apply['auth_header'] ?? null) ?? 'X-Realtime-Media-Ingest-Secret',
+        'auth_token' => $authToken,
         'tls_verify' => bool_value($apply['tls_verify'] ?? ($apply['verify_tls'] ?? null)),
         'ca_bundle' => string_value($apply['ca_bundle'] ?? null)
             ?? string_value($apply['curl_ca_bundle'] ?? null)
@@ -271,6 +283,12 @@ function apply_media_ingest_settings(array $mediaIngest, bool $dryRun): array
         $settings = is_array($project->media_ingest_settings) ? $project->media_ingest_settings : [];
         if (($mediaIngest['tls_verify'] ?? null) !== null) {
             $settings['verify_tls'] = (bool) $mediaIngest['tls_verify'];
+        }
+        if (string_value($mediaIngest['auth_header'] ?? null) !== null) {
+            $settings['auth_header'] = string_value($mediaIngest['auth_header']);
+        }
+        if (string_value($mediaIngest['auth_token'] ?? null) !== null) {
+            $settings['auth_token'] = string_value($mediaIngest['auth_token']);
         }
         if (string_value($mediaIngest['ca_bundle'] ?? null) !== null) {
             $settings['ca_bundle'] = string_value($mediaIngest['ca_bundle']);
@@ -401,6 +419,8 @@ try {
             'failed' => $status === 'success' ? 0 : 1,
             'project_codes' => $mediaResult['project_codes'],
             'settings' => [
+                'auth_header' => string_value($mediaIngest['auth_header'] ?? null),
+                'auth_token_supplied' => string_value($mediaIngest['auth_token'] ?? null) !== null,
                 'tls_verify' => $mediaIngest['tls_verify'] ?? true,
                 'ca_bundle_configured' => string_value($mediaIngest['ca_bundle'] ?? null) !== null,
             ],

@@ -227,6 +227,8 @@ function expected_media_ingest_settings(array $config): ?array
     return [
         'project_codes' => array_values(array_filter($projectCodes, 'is_string')),
         'base_url' => string_value($media['base_url'] ?? null),
+        'auth_header' => string_value($media['auth_header'] ?? null) ?? 'X-Realtime-Media-Ingest-Secret',
+        'auth_token_expected' => string_value($media['auth_token'] ?? ($media['media_ingest_secret'] ?? null)) !== null,
         'ca_bundle_expected' => string_value($media['ca_bundle'] ?? ($media['curl_ca_bundle'] ?? ($media['ssl_cert_file'] ?? null))) !== null,
         'tls_verify' => bool_value($media['tls_verify'] ?? ($media['verify_tls'] ?? null)) ?? true,
     ];
@@ -367,6 +369,12 @@ try {
             if ((bool) ($settings['verify_tls'] ?? true) !== (bool) $expectedMediaIngest['tls_verify']) {
                 $missing[] = $project->project_code . '.media_ingest_verify_tls';
             }
+            if (string_value($settings['auth_header'] ?? null) !== $expectedMediaIngest['auth_header']) {
+                $missing[] = $project->project_code . '.media_ingest_auth_header';
+            }
+            if ($expectedMediaIngest['auth_token_expected'] && string_value($settings['auth_token'] ?? null) === null) {
+                $missing[] = $project->project_code . '.media_ingest_auth_token';
+            }
             if ($expectedMediaIngest['ca_bundle_expected'] && string_value($settings['ca_bundle'] ?? null) === null) {
                 $missing[] = $project->project_code . '.media_ingest_ca_bundle';
             }
@@ -388,6 +396,8 @@ try {
             'missing_keys' => $missing,
             'project_codes' => $projects->pluck('project_code')->values()->all(),
             'settings' => [
+                'auth_header' => $expectedMediaIngest['auth_header'],
+                'auth_token_expected' => (bool) $expectedMediaIngest['auth_token_expected'],
                 'verify_tls' => (bool) $expectedMediaIngest['tls_verify'],
                 'ca_bundle_expected' => (bool) $expectedMediaIngest['ca_bundle_expected'],
             ],
