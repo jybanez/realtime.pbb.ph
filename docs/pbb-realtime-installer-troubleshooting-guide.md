@@ -80,6 +80,17 @@ Check:
 
 Reports must show `token_supplied=true` without printing the token.
 
+For media ingest projects, the CA rule is per project scope. Any project with HTTPS media ingest enabled and `verify_tls=true` needs `media_ingest_settings.ca_bundle` unless the host PHP/cURL runtime already trusts the downstream certificate chain. This applies to future clients and new project/policy codes, not only the built-in Hotline project scopes.
+
+If media chunks fail with `media.ingest-failed` and Realtime logs show cURL error 60, verify:
+
+- the affected project scope has `media_ingest_settings.ca_bundle`
+- the CA file exists on the installed host
+- Kit Data Prep Apply Settings was rerun after the project was created
+- both `pbb-realtime-websocket` and `pbb-realtime-media-dispatcher` were restarted after settings changed
+
+For future project onboarding, treat media ingest TLS trust as part of the integration contract. A project is ready for install testing only when its Data Prep source or Kit config declares the client/project/policy codes, media ingest endpoint, auth header/secret, TLS verification mode, and CA bundle behavior. The minimum acceptance check is: Data Prep Verify reports the project present, `verify_tls=true`, `ca_bundle_configured=true` for HTTPS media ingest, and an actual media chunk reaches the downstream ingest service.
+
 ## Maestro Heartbeat Missing After Data Prep
 
 Check installed logs:

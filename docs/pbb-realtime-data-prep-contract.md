@@ -190,6 +190,69 @@ Realtime media chunk forwarding also uses Laravel HTTP/Guzzle. For Hotline inges
 
 Realtime persists that path in each matching project's `media_ingest_settings.ca_bundle` and passes it to Guzzle as the `verify` option. Do not disable TLS verification for production media ingest.
 
+## Future Media Ingest Projects
+
+The CA bundle requirement is not Hotline-specific. It applies to every Realtime project scope that forwards media chunks to an HTTPS downstream ingest endpoint.
+
+When a new client, project, or policy set is added, any project with:
+
+- `media_ingest_settings.enabled=true`
+- `media_ingest_settings.verify_tls=true`
+- `media_ingest_settings.base_url` beginning with `https://`
+
+must have a trusted CA bundle path in `media_ingest_settings.ca_bundle` unless the target certificate chain is already trusted by the host PHP/cURL runtime.
+
+For Kit-managed installs and Data Prep, the default behavior should be:
+
+1. identify every media-ingest-enabled project scope for the client, not only the original Hotline project codes
+2. preserve any project-specific `ca_bundle` already present
+3. otherwise apply Kit's trusted CA bundle, typically `C:/wamp64/www/pbb/kit-setup/assets/certs/cacert.pem`
+4. verify/report `ca_bundle_configured=true` for each matched HTTPS media ingest project
+5. restart `pbb-realtime-websocket` and `pbb-realtime-media-dispatcher` after Data Prep Apply Settings
+
+For manual/admin-created projects, operators must fill the `CA bundle` field when enabling HTTPS media ingest with TLS verification. Leaving it blank can recreate cURL error 60 failures on Windows hosts even when Realtime authentication, project codes, and policy codes are correct.
+
+## Future Project Compliance Checklist
+
+A future Realtime integration is compliant when the project bundle, Kit handoff, and admin/runtime state agree on the same client, project, policy, media ingest, and TLS trust contract.
+
+For every new client integration:
+
+1. Define stable codes before packaging:
+   - `client_code`
+   - one or more `project_code` values
+   - `policy_code` values owned by the same client
+   - room prefixes and capabilities required by each project scope
+2. Add those records to the app-owned Data Prep source or provide them in Kit Data Prep config. Do not rely on database seeders for Kit installs.
+3. For each media-ingest-enabled project, include:
+   - `media_ingest_settings.enabled=true`
+   - `media_ingest_settings.base_url`
+   - `media_ingest_settings.path`
+   - `media_ingest_settings.auth_header`
+   - an app/Kit supplied ingest secret
+   - `media_ingest_settings.verify_tls=true`
+   - `media_ingest_settings.ca_bundle` when `base_url` is HTTPS and the host may not trust the certificate chain
+4. Data Prep Apply Settings must be able to update those media ingest project scopes after install. It should match by explicit `project_codes` when available, or by enabled HTTPS media ingest routes when onboarding many projects.
+5. Data Prep Verify must report every expected project as present and must report CA bundle status for each HTTPS media ingest route:
+   - `ca_bundle_configured`
+   - `ca_bundle_exists` when the verifier can check the installed host path
+   - `verify_tls`
+6. Kit must restart Realtime runtime services after applying settings that affect media forwarding:
+   - `pbb-realtime-websocket`
+   - `pbb-realtime-media-dispatcher`
+7. Integration acceptance should include at least one media chunk smoke/functional test per new downstream ingest target. A websocket auth success alone is not enough to prove media ingest is correctly trusted.
+
+Default rule for Kit-generated configs:
+
+```text
+If a Realtime project has media_ingest_settings.enabled=true,
+media_ingest_settings.verify_tls is not false,
+and media_ingest_settings.base_url starts with https://,
+then Kit should provide its trusted CA bundle unless the project already declares a specific ca_bundle.
+```
+
+This keeps future project and policy codes from reintroducing the same TLS failure while preserving the production rule that TLS verification remains enabled.
+
 ## Bundle Handoff
 
 Any Data Prep metadata, tool, source, report, checksum, or docs change must be shipped through the canonical bundle:
