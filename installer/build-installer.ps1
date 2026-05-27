@@ -11,6 +11,11 @@ $PhpBin = if (Test-Path "C:\\wamp64\\bin\\php\\php8.2.29\\php.exe") {
 } else {
     (Get-Command php).Source
 }
+$ComposerPhar = if (Test-Path "C:\\ProgramData\\ComposerSetup\\bin\\composer.phar") {
+    "C:\\ProgramData\\ComposerSetup\\bin\\composer.phar"
+} else {
+    $null
+}
 
 if ([string]::IsNullOrWhiteSpace($ZipPath)) {
     $ZipPath = Join-Path $OutputDir "pbb-realtime-installer.zip"
@@ -56,9 +61,58 @@ $Items = @(
     "composer.lock"
 )
 
+$StageRoot = Join-Path $OutputDir ("package-stage-" + [System.Guid]::NewGuid().ToString("N"))
+$PackageRoot = $Root
+
+try {
+    New-Item -ItemType Directory -Path $StageRoot | Out-Null
+
+    foreach ($Item in $Items) {
+        if ($Item -eq "vendor") {
+            continue
+        }
+
+        $SourcePath = Join-Path $Root $Item
+        if (-not (Test-Path $SourcePath)) {
+            continue
+        }
+
+        $DestinationPath = Join-Path $StageRoot $Item
+        $DestinationParent = Split-Path -Parent $DestinationPath
+        if (-not [string]::IsNullOrWhiteSpace($DestinationParent) -and -not (Test-Path $DestinationParent)) {
+            New-Item -ItemType Directory -Path $DestinationParent -Force | Out-Null
+        }
+
+        Copy-Item -LiteralPath $SourcePath -Destination $DestinationPath -Recurse -Force
+    }
+
+    $PreviousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        if ($ComposerPhar -ne $null) {
+            $ComposerOutput = & $PhpBin $ComposerPhar install --no-dev --optimize-autoloader --no-interaction --no-progress --working-dir $StageRoot 2>&1
+        } else {
+            $ComposerOutput = & composer install --no-dev --optimize-autoloader --no-interaction --no-progress --working-dir $StageRoot 2>&1
+        }
+        $ComposerExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $PreviousErrorActionPreference
+    }
+    if ($ComposerExitCode -ne 0) {
+        throw ("Production Composer install failed. " + ($ComposerOutput -join "`n"))
+    }
+
+    $PackageRoot = $StageRoot
+}
+catch {
+    Remove-Item $StageRoot -Recurse -Force -ErrorAction SilentlyContinue
+    throw
+}
+
 $Resolved = @()
 foreach ($Item in $Items) {
-    $Path = Join-Path $Root $Item
+    $Path = Join-Path $PackageRoot $Item
     if (Test-Path $Path) {
         $Resolved += [pscustomobject]@{
             Source = $Path
@@ -314,3 +368,5 @@ finally {
 }
 
 Write-Host "Installer ZIP created at: $ZipPath"
+
+Remove-Item $StageRoot -Recurse -Force -ErrorAction SilentlyContinue

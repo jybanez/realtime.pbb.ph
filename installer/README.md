@@ -46,6 +46,8 @@ Artifacts are written under:
 Packaged acceptance builds are written under `storage/app/installer-build/`.
 Successful acceptance runs remove extracted `acceptance-*` folders automatically and keep only the latest three `pbb-realtime-installer-*.zip` files by default. Pass `-KeepArtifacts` to retain extracted acceptance files for debugging, or `-ZipRetention <count>` to adjust ZIP retention.
 
+Installer ZIP builds create a temporary packaging stage and run `composer install --no-dev --optimize-autoloader` with the configured PHP binary before archiving. The local development `vendor/` tree is not modified. Release ZIPs must not contain Composer dev packages such as PHPUnit, Mockery, Faker, Collision, Ignition, Sail, or Pint.
+
 Installer ZIP builds intentionally package only the production Helper runtime from `public/vendor/helpers.pbb.ph`: the rebuilt `dist` bundle, `js/ui/ui.loader.js`, `js/vendor/marked.esm.js`, direct CSS dependencies, and `boot.*.json` metadata. Helper demos, docs, samples, tests, scripts, `.git`, `node_modules`, and other non-runtime files are excluded from release packages.
 
 Installer ZIP builds also exclude local package-builder and acceptance tooling such as `installer/build-installer.ps1`, `installer/test-installer-bundle.ps1`, public test/demo pages, CI scaffolding, repository tests, database factories, and database seeders. The generated ZIP keeps Kit-facing installer docs and runtime files, and its bundled `release.json` is stamped with build metadata using the `v{milestone}-{version}` display version convention. Optional data loading should use the declared Data Prep tools under `release.json`, not Laravel database seeders.
