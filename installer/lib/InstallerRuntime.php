@@ -621,11 +621,17 @@ final class InstallerRuntime
             throw new RuntimeException('Install path does not exist: ' . dirname($envPath));
         }
 
+        $mode = strtolower((string) ($config['mode'] ?? 'fresh'));
         $baseContent = '';
-        if (is_file($envExamplePath)) {
+        $baseSource = 'env_template';
+        if (in_array($mode, ['upgrade', 'repair'], true) && is_file($envPath)) {
+            $baseContent = (string) file_get_contents($envPath);
+            $baseSource = 'existing_env';
+        } elseif (is_file($envExamplePath)) {
             $baseContent = (string) file_get_contents($envExamplePath);
         } elseif (is_file($envPath)) {
             $baseContent = (string) file_get_contents($envPath);
+            $baseSource = 'existing_env';
         }
 
         if ($baseContent === '') {
@@ -701,6 +707,7 @@ final class InstallerRuntime
             'backup_path' => $backupPath,
             'generated_app_key' => $generatedAppKey,
             'app_key' => $appKey,
+            'base_source' => $baseSource,
         ];
     }
 
@@ -1176,6 +1183,45 @@ final class InstallerRuntime
         ];
 
         return $result;
+    }
+
+    public static function refreshRuntimeCaches(array $config): array
+    {
+        $commands = [
+            ['optimize:clear'],
+            ['config:cache'],
+        ];
+        $results = [];
+
+        foreach ($commands as $arguments) {
+            $result = self::runArtisan($config, $arguments);
+            $results[] = [
+                'command' => 'php artisan ' . implode(' ', $arguments),
+                'exit_code' => $result['exit_code'] ?? 1,
+                'stdout' => $result['stdout'] ?? '',
+                'stderr' => $result['stderr'] ?? '',
+            ];
+
+            if (($result['exit_code'] ?? 1) !== 0) {
+                throw new RuntimeException('Runtime cache refresh failed: ' . trim((string) (($result['stderr'] ?? '') ?: ($result['stdout'] ?? ''))));
+            }
+        }
+
+        self::appendLog('Runtime caches refreshed with optimize:clear and config:cache.');
+
+        return [
+            'status' => 'success',
+            'commands' => $results,
+        ];
+    }
+
+    public static function rollbackSupportSummary(): array
+    {
+        return [
+            'supported' => true,
+            'scope' => 'file-and-config-artifact backup',
+            'notes' => 'Upgrade mode backs up installer-managed release files, .env, and service artifacts before mutation. Database rollback is not automatic; bundles that require irreversible schema or data migrations must declare rollback_supported=false in release.json.',
+        ];
     }
 
     public static function baselineSchemaRelativePath(): string

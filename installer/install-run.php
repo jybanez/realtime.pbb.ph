@@ -165,11 +165,13 @@ try {
 
     if ($mode === 'repair') {
         $repair = InstallerRuntime::runRepair($config);
+        $cacheResult = InstallerRuntime::refreshRuntimeCaches($config);
         $validation = InstallerRuntime::validateInstalledState($config);
         $status = InstallerRuntime::summarizeValidation($validation)['failed'] === 0 ? 'success' : 'warning';
         $report = InstallerRuntime::buildKitReport($config, $status, [
             ['id' => 'preflight', 'status' => 'success', 'message' => 'Blocking preflight checks passed.'],
             ['id' => 'repair', 'status' => 'success', 'message' => 'Repair actions completed.'],
+            ['id' => 'cache', 'status' => 'success', 'message' => 'Runtime caches refreshed.'],
             ['id' => 'validate', 'status' => $status === 'success' ? 'success' : 'warning', 'message' => 'Validation completed after repair.'],
         ], [
             'started_at' => $startedAt,
@@ -177,6 +179,8 @@ try {
             'summary' => 'Repair mode completed.',
         ]);
         $report['repair'] = $repair;
+        $report['cache'] = $cacheResult;
+        $report['rollback'] = InstallerRuntime::rollbackSupportSummary();
         InstallerRuntime::writeReport($report);
         writeExternalReport($args['report'], $report);
         echo json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
@@ -190,6 +194,7 @@ try {
     $adminResult = InstallerRuntime::bootstrapAdmin($config);
     $serviceArtifact = InstallerRuntime::writeServiceArtifact($config);
     $serviceRegistration = InstallerRuntime::registerServiceRuntime($config, $serviceArtifact);
+    $cacheResult = InstallerRuntime::refreshRuntimeCaches($config);
 
     $manifest = InstallerRuntime::buildKitManifest($config, [
         'service_artifact' => $serviceArtifact,
@@ -208,6 +213,7 @@ try {
         'service_artifact_path' => $serviceArtifact['artifact_path'] ?? null,
         'service_registration_status' => $serviceRegistration['status'] ?? null,
         'upgrade_backup_root' => $upgradeBackup['backup_root'] ?? null,
+        'runtime_cache_status' => $cacheResult['status'] ?? null,
     ];
     InstallerRuntime::writeManifest($manifest);
     InstallerRuntime::writeCompletionMarker([
@@ -222,6 +228,7 @@ try {
         ['id' => 'environment', 'status' => 'success', 'message' => '.env was written.'],
         ['id' => 'migrate', 'status' => 'success', 'message' => 'Database migrations completed.'],
         ['id' => 'admin', 'status' => 'success', 'message' => 'Initial admin account is present.'],
+        ['id' => 'cache', 'status' => 'success', 'message' => 'Runtime caches refreshed.'],
         ['id' => 'services', 'status' => ($serviceRegistration['registered'] ?? false) ? 'success' : 'warning', 'message' => $serviceRegistration['message'] ?? 'Service artifact generated.'],
     ], [
         'started_at' => $startedAt,
@@ -250,10 +257,12 @@ try {
         'overwrite_existing' => (bool) ($adminResult['overwrite_existing'] ?? false),
     ];
     $report['service_registration'] = $serviceRegistration;
+    $report['cache'] = $cacheResult;
     $report['upgrade'] = [
         'backup_root' => $upgradeBackup['backup_root'] ?? null,
         'backup_files' => $upgradeBackup['files'] ?? [],
     ];
+    $report['rollback'] = InstallerRuntime::rollbackSupportSummary();
 
     InstallerRuntime::writeReport($report);
     writeExternalReport($args['report'], $report);

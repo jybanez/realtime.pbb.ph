@@ -19,6 +19,8 @@ Current scope:
   - Windows PowerShell/service helper
   - Linux systemd unit template
 - repair mode for missing APP_KEY, pending migrations, missing admin, and missing service artifact
+- upgrade/repair runtime cache refresh with `optimize:clear` and `config:cache`
+- upgrade/repair reports that state backup and rollback-support metadata
 - install manifest output
 - root `release.json` for Kit Setup discovery
 - unattended CLI install runner under `installer/install-run.php`
@@ -51,6 +53,8 @@ Installer ZIP builds create a temporary packaging stage and run `composer instal
 Installer ZIP builds intentionally package only the production Helper runtime from `public/vendor/helpers.pbb.ph`: the rebuilt `dist` bundle, `js/ui/ui.loader.js`, `js/vendor/marked.esm.js`, direct CSS dependencies, and `boot.*.json` metadata. Helper demos, docs, samples, tests, scripts, `.git`, `node_modules`, and other non-runtime files are excluded from release packages.
 
 Installer ZIP builds also exclude local package-builder and acceptance tooling such as `installer/build-installer.ps1`, `installer/test-installer-bundle.ps1`, public test/demo pages, CI scaffolding, repository tests, database factories, and database seeders. The generated ZIP keeps Kit-facing installer docs and runtime files, and its bundled `release.json` is stamped with build metadata using the `v{milestone}-{version}` display version convention. Optional data loading should use the declared Data Prep tools under `release.json`, not Laravel database seeders.
+
+For Kit Updater handoff, publish canonical app bundles from GitHub Releases rather than raw branch files. The handoff should include the ZIP asset URL, archive SHA-256, size, `release.json` version/build id/build commit, internal checksum scan result, update compatibility, service restart requirement, Data Prep rerun requirement, and any irreversible migration warning. The checked-in `release.json` carries stable identity and update contract defaults; `installer/build-installer.ps1` stamps unique build metadata into the packaged `release.json`.
 
 Optional initial data can be populated after install with:
 

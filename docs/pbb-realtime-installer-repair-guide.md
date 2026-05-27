@@ -14,14 +14,17 @@ Repair mode should help recover a hub deployment with drift or partial failure.
 
 ## Current State
 
-Repair mode is selectable in the installer, but the targeted repair workflow is not fully implemented yet.
+Repair mode has a real targeted installer path.
 
 Current practical use:
 
-- re-run checks
-- re-save config
-- re-run install actions that are already implemented
+- detect missing `APP_KEY` and rewrite `.env` from the existing installed `.env` when present
+- detect missing admin account and bootstrap the configured admin without overwriting existing users
+- detect pending migrations and run the bounded Laravel migration path
+- detect missing service artifacts and regenerate them
+- refresh runtime caches with `optimize:clear` and `config:cache`
+- emit a repair report with detected/performed/skipped actions, validation, cache refresh, and rollback-support metadata
 
 ## Future Repair Target
 
-Repair mode should become the operator-safe way to restore a hub deployment without doing a full reinstall.
+Repair mode should remain the operator-safe way to restore a hub deployment without doing a full reinstall. Future additions should stay bounded and app-owned; repair must not erase runtime data or regenerate client/project/policy secrets unless an explicit future contract requires it.
