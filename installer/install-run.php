@@ -165,6 +165,7 @@ try {
 
     if ($mode === 'repair') {
         $repair = InstallerRuntime::runRepair($config);
+        $releaseSnapshot = InstallerRuntime::writeReleaseSnapshot();
         $cacheResult = InstallerRuntime::refreshRuntimeCaches($config);
         $validation = InstallerRuntime::validateInstalledState($config);
         $status = InstallerRuntime::summarizeValidation($validation)['failed'] === 0 ? 'success' : 'warning';
@@ -179,6 +180,8 @@ try {
             'summary' => 'Repair mode completed.',
         ]);
         $report['repair'] = $repair;
+        $report['release_metadata'] = InstallerRuntime::releaseMetadataStatus();
+        $report['release_metadata_snapshot'] = $releaseSnapshot;
         $report['cache'] = $cacheResult;
         $report['rollback'] = InstallerRuntime::rollbackSupportSummary();
         InstallerRuntime::writeReport($report);
@@ -195,10 +198,12 @@ try {
     $serviceArtifact = InstallerRuntime::writeServiceArtifact($config);
     $serviceRegistration = InstallerRuntime::registerServiceRuntime($config, $serviceArtifact);
     $cacheResult = InstallerRuntime::refreshRuntimeCaches($config);
+    $releaseSnapshot = InstallerRuntime::writeReleaseSnapshot();
 
     $manifest = InstallerRuntime::buildKitManifest($config, [
         'service_artifact' => $serviceArtifact,
         'health_status' => 'pending',
+        'release_metadata_snapshot' => $releaseSnapshot,
     ]);
     $manifest['artifacts'] = [
         'environment_path' => $envResult['path'],
@@ -214,11 +219,13 @@ try {
         'service_registration_status' => $serviceRegistration['status'] ?? null,
         'upgrade_backup_root' => $upgradeBackup['backup_root'] ?? null,
         'runtime_cache_status' => $cacheResult['status'] ?? null,
+        'release_metadata_snapshot_status' => $releaseSnapshot['status'] ?? null,
     ];
     InstallerRuntime::writeManifest($manifest);
     InstallerRuntime::writeCompletionMarker([
         'installed_at' => date(DATE_ATOM),
         'mode' => $mode,
+        'version' => InstallerRuntime::appVersion(),
         'install_path' => $config['app']['install_path'] ?? '',
         'app_url' => $config['app']['app_url'] ?? '',
     ]);
@@ -257,6 +264,8 @@ try {
         'overwrite_existing' => (bool) ($adminResult['overwrite_existing'] ?? false),
     ];
     $report['service_registration'] = $serviceRegistration;
+    $report['release_metadata'] = InstallerRuntime::releaseMetadataStatus();
+    $report['release_metadata_snapshot'] = $releaseSnapshot;
     $report['cache'] = $cacheResult;
     $report['upgrade'] = [
         'backup_root' => $upgradeBackup['backup_root'] ?? null,

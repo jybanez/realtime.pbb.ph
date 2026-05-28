@@ -21,6 +21,7 @@ Current scope:
 - repair mode for missing APP_KEY, pending migrations, missing admin, and missing service artifact
 - upgrade/repair runtime cache refresh with `optimize:clear` and `config:cache`
 - upgrade/repair reports that state backup and rollback-support metadata
+- release metadata snapshot/repair for interrupted updates that leave root `release.json` missing or unreadable
 - install manifest output
 - root `release.json` for Kit Setup discovery
 - unattended CLI install runner under `installer/install-run.php`

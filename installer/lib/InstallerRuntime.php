@@ -7,6 +7,7 @@ final class InstallerRuntime
     private const REPORT_FILE = 'install-report.json';
     private const MANIFEST_FILE = 'install-manifest.json';
     private const COMPLETION_FILE = 'completed.json';
+    private const RELEASE_SNAPSHOT_FILE = 'release.json';
     private const GENERATED_DIR = 'generated';
 
     public static function rootPath(): string
@@ -76,6 +77,16 @@ final class InstallerRuntime
     public static function completionPath(): string
     {
         return self::storageDir() . DIRECTORY_SEPARATOR . self::COMPLETION_FILE;
+    }
+
+    public static function releaseMetadataPath(): string
+    {
+        return self::rootPath() . DIRECTORY_SEPARATOR . 'release.json';
+    }
+
+    public static function releaseSnapshotPath(): string
+    {
+        return self::storageDir() . DIRECTORY_SEPARATOR . self::RELEASE_SNAPSHOT_FILE;
     }
 
     public static function generatedDir(): string
@@ -245,6 +256,33 @@ final class InstallerRuntime
         return $manifest;
     }
 
+    public static function writeReleaseSnapshot(): array
+    {
+        self::ensureStorageDir();
+
+        $status = self::releaseMetadataStatus();
+        if (! $status['readable']) {
+            return [
+                'status' => 'skipped',
+                'reason' => $status['reason'],
+                'source' => self::releaseMetadataPath(),
+                'snapshot' => self::releaseSnapshotPath(),
+            ];
+        }
+
+        copy(self::releaseMetadataPath(), self::releaseSnapshotPath());
+        self::appendLog('Release metadata snapshot refreshed at ' . self::releaseSnapshotPath());
+
+        return [
+            'status' => 'success',
+            'source' => self::releaseMetadataPath(),
+            'snapshot' => self::releaseSnapshotPath(),
+            'version' => $status['version'],
+            'build_id' => $status['build_id'],
+            'build_git_commit' => $status['build_git_commit'],
+        ];
+    }
+
     public static function loadManifest(): array
     {
         $path = self::manifestPath();
@@ -260,7 +298,7 @@ final class InstallerRuntime
 
     public static function releaseMetadata(): array
     {
-        $path = self::rootPath() . DIRECTORY_SEPARATOR . 'release.json';
+        $path = self::releaseMetadataPath();
 
         if (! is_file($path)) {
             return [
@@ -275,6 +313,155 @@ final class InstallerRuntime
         $decoded = json_decode((string) file_get_contents($path), true);
 
         return is_array($decoded) ? $decoded : [];
+    }
+
+    public static function releaseMetadataStatus(): array
+    {
+        $path = self::releaseMetadataPath();
+
+        if (! is_file($path)) {
+            return [
+                'readable' => false,
+                'reason' => 'missing',
+                'path' => $path,
+                'message' => 'Installed release.json is missing.',
+                'version' => null,
+                'build_id' => null,
+                'build_git_commit' => null,
+            ];
+        }
+
+        $decoded = json_decode((string) file_get_contents($path), true);
+        if (! is_array($decoded)) {
+            return [
+                'readable' => false,
+                'reason' => 'invalid_json',
+                'path' => $path,
+                'message' => 'Installed release.json is not valid JSON.',
+                'version' => null,
+                'build_id' => null,
+                'build_git_commit' => null,
+            ];
+        }
+
+        $app = (string) ($decoded['app'] ?? '');
+        $version = (string) ($decoded['version'] ?? '');
+        if ($app === '' || $version === '') {
+            return [
+                'readable' => false,
+                'reason' => 'missing_identity',
+                'path' => $path,
+                'message' => 'Installed release.json is readable but missing app/version identity.',
+                'version' => $version !== '' ? $version : null,
+                'build_id' => $decoded['build']['id'] ?? null,
+                'build_git_commit' => $decoded['build']['git_commit'] ?? null,
+            ];
+        }
+
+        return [
+            'readable' => true,
+            'reason' => 'ok',
+            'path' => $path,
+            'message' => 'Installed release.json is readable.',
+            'app' => $app,
+            'version' => $version,
+            'build_id' => $decoded['build']['id'] ?? null,
+            'build_git_commit' => $decoded['build']['git_commit'] ?? null,
+        ];
+    }
+
+    public static function restoreReleaseMetadata(): array
+    {
+        $current = self::releaseMetadataStatus();
+        if ($current['readable']) {
+            $snapshot = self::writeReleaseSnapshot();
+
+            return [
+                'status' => 'skipped',
+                'reason' => 'already_readable',
+                'current' => $current,
+                'snapshot' => $snapshot,
+            ];
+        }
+
+        self::ensureStorageDir();
+
+        $snapshotPath = self::releaseSnapshotPath();
+        if (is_file($snapshotPath)) {
+            $decoded = json_decode((string) file_get_contents($snapshotPath), true);
+            if (is_array($decoded) && ! empty($decoded['app']) && ! empty($decoded['version'])) {
+                copy($snapshotPath, self::releaseMetadataPath());
+                self::appendLog('Release metadata restored from installer snapshot.');
+
+                return [
+                    'status' => 'restored',
+                    'source' => 'installer_snapshot',
+                    'path' => self::releaseMetadataPath(),
+                    'version' => (string) $decoded['version'],
+                    'build_id' => $decoded['build']['id'] ?? null,
+                    'build_git_commit' => $decoded['build']['git_commit'] ?? null,
+                    'previous_reason' => $current['reason'],
+                ];
+            }
+        }
+
+        $manifest = self::loadManifest();
+        $completion = self::loadCompletionMarker();
+        $version = (string) ($manifest['version'] ?? $completion['version'] ?? self::appVersion());
+        if ($version === '' || $version === '0.0.0-dev') {
+            return [
+                'status' => 'failed',
+                'reason' => 'no_repair_source',
+                'path' => self::releaseMetadataPath(),
+                'previous_reason' => $current['reason'],
+                'message' => 'No readable release snapshot or installed manifest version was available.',
+            ];
+        }
+
+        $release = [
+            'schema_version' => 1,
+            'app' => 'pbb-realtime',
+            'name' => 'PBB Realtime',
+            'version' => $version,
+            'display_version' => (string) ($manifest['display_version'] ?? ('v1-' . $version)),
+            'build' => [
+                'version' => $version,
+                'id' => $manifest['build_id'] ?? null,
+                'built_at' => null,
+                'git_commit' => $manifest['build_git_commit'] ?? null,
+                'builder' => 'installer-repair',
+            ],
+            'update' => [
+                'contract_version' => 1,
+                'channel' => 'testing',
+                'immutable_release' => false,
+                'from_versions' => [$version],
+                'compatibility' => 'repair',
+                'requires_database_migration' => false,
+                'requires_data_prep_rerun' => true,
+                'requires_service_restart' => true,
+                'rollback_supported' => true,
+            ],
+            'repair' => [
+                'restored_from' => 'install_manifest',
+                'restored_at' => date(DATE_ATOM),
+                'previous_reason' => $current['reason'],
+            ],
+        ];
+
+        file_put_contents(self::releaseMetadataPath(), json_encode($release, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+        copy(self::releaseMetadataPath(), self::releaseSnapshotPath());
+        self::appendLog('Release metadata reconstructed from installed manifest.');
+
+        return [
+            'status' => 'restored',
+            'source' => 'install_manifest',
+            'path' => self::releaseMetadataPath(),
+            'version' => $version,
+            'build_id' => $release['build']['id'],
+            'build_git_commit' => $release['build']['git_commit'],
+            'previous_reason' => $current['reason'],
+        ];
     }
 
     public static function appVersion(): string
@@ -418,6 +605,7 @@ final class InstallerRuntime
         $dbPort = (int) ($config['database']['port'] ?? 3306);
         $mysqlBinaryCheck = self::checkMysqlBinary($config);
         $wsPort = (int) ($config['realtime']['ws_port'] ?? 8080);
+        $releaseMetadata = self::releaseMetadataStatus();
 
         $checks = [];
         $checks[] = self::check('php_version', 'PHP version', version_compare(PHP_VERSION, '8.1.0', '>='), 'PHP ' . PHP_VERSION);
@@ -434,6 +622,7 @@ final class InstallerRuntime
         $checks[] = self::check('storage_writable', 'Storage writable', is_dir($storage) && is_writable($storage), $storage);
         $checks[] = self::check('cache_writable', 'Bootstrap cache writable', is_dir($cache) && is_writable($cache), $cache);
         $checks[] = self::check('env_writable', '.env writable or creatable', (! is_file($envPath) && is_writable($root)) || (is_file($envPath) && is_writable($envPath)), $envPath);
+        $checks[] = self::check('release_metadata', 'Installed release metadata', $releaseMetadata['readable'], $releaseMetadata['message'], false);
         $checks[] = self::check('ws_url', 'Public websocket URL', (bool) filter_var($wsUrl, FILTER_VALIDATE_URL), $wsUrl ?: 'Missing URL');
         $checks[] = self::check('token_secret', 'Token signing secret', self::isNonPlaceholderSecret($secret), self::maskSecret($secret), true);
         $checks[] = self::check('ws_port', 'Websocket port availability', self::isTcpPortAvailable($wsPort), "Port {$wsPort}", false);
@@ -1441,6 +1630,14 @@ PHP;
         $results = [];
         $appUrl = (string) ($config['app']['app_url'] ?? '');
         $adminEmail = (string) ($config['admin']['email'] ?? '');
+        $releaseMetadata = self::releaseMetadataStatus();
+
+        $results[] = self::check(
+            'release_metadata',
+            'Installed release metadata',
+            $releaseMetadata['readable'],
+            $releaseMetadata['message']
+        );
 
         $httpProbe = self::probeHttpUrl($appUrl);
         $results[] = self::check('http_url', 'HTTP app reachability', $httpProbe['ok'], $httpProbe['message'], false);
@@ -1560,12 +1757,16 @@ PHP;
         $app = $config['app'] ?? [];
         $webServer = self::webServerRequirements($config);
         $runtimeServices = self::runtimeServices($config);
+        $releaseMetadata = self::releaseMetadataStatus();
 
         return [
             'schema_version' => 1,
             'app' => 'pbb-realtime',
             'name' => 'PBB Realtime',
             'version' => self::appVersion(),
+            'display_version' => (string) (self::releaseMetadata()['display_version'] ?? ''),
+            'build_id' => $releaseMetadata['build_id'] ?? null,
+            'build_git_commit' => $releaseMetadata['build_git_commit'] ?? null,
             'installed_at' => date(DATE_ATOM),
             'install_mode' => (string) ($config['mode'] ?? 'fresh'),
             'install_path' => (string) ($app['install_path'] ?? self::rootPath()),
@@ -1584,6 +1785,8 @@ PHP;
             'runtime_services' => $runtimeServices,
             'web_server' => $webServer,
             'web_server_requirements' => $webServer['requirements'],
+            'release_metadata' => $releaseMetadata,
+            'release_metadata_snapshot' => $details['release_metadata_snapshot'] ?? null,
             'health' => [
                 'last_checked_at' => $details['health_checked_at'] ?? null,
                 'status' => $details['health_status'] ?? 'unknown',
@@ -1599,6 +1802,7 @@ PHP;
         $errors = array_values($details['errors'] ?? []);
         $webServer = self::webServerRequirements($config);
         $runtimeServices = self::runtimeServices($config);
+        $releaseMetadata = self::releaseMetadataStatus();
 
         foreach ($validation as $check) {
             if (($check['status'] ?? 'fail') !== 'pass' && ! (bool) ($check['blocking'] ?? true)) {
@@ -1613,6 +1817,7 @@ PHP;
             'schema_version' => 1,
             'app' => 'pbb-realtime',
             'version' => self::appVersion(),
+            'release_metadata' => $releaseMetadata,
             'run_id' => (string) ($config['kit']['run_id'] ?? ''),
             'mode' => (string) ($config['mode'] ?? 'fresh'),
             'status' => $status,
@@ -1812,12 +2017,15 @@ PHP;
         $report = self::loadReport();
         $config = $config !== [] ? $config : ($state['config'] ?? self::configTemplate());
         $completion = self::loadCompletionMarker();
+        $releaseMetadata = self::releaseMetadataStatus();
         $validation = is_array($state['validation'] ?? null) ? $state['validation'] : [];
         $failedValidation = array_values(array_filter($validation, static fn (array $check): bool => ($check['status'] ?? 'fail') !== 'pass' && (bool) ($check['blocking'] ?? true)));
         $installed = ! empty($completion['installed_at']) || $manifest !== [];
 
         $status = 'not-installed';
-        if ($installed && $failedValidation === []) {
+        if ($installed && ! $releaseMetadata['readable']) {
+            $status = 'degraded';
+        } elseif ($installed && $failedValidation === []) {
             $status = 'healthy';
         } elseif ($installed && $failedValidation !== []) {
             $status = 'degraded';
@@ -1829,6 +2037,12 @@ PHP;
             'schema_version' => 1,
             'app' => 'pbb-realtime',
             'version' => (string) ($manifest['version'] ?? self::appVersion()),
+            'release_metadata' => $releaseMetadata,
+            'repair_actions' => ! $releaseMetadata['readable'] ? [[
+                'id' => 'release_metadata',
+                'label' => 'Restore release metadata',
+                'reason' => $releaseMetadata['message'],
+            ]] : [],
             'installed' => $installed,
             'status' => $status,
             'mode' => $installed ? 'installed' : 'new',
@@ -1873,6 +2087,15 @@ PHP;
     public static function detectRepairActions(array $config): array
     {
         $actions = [];
+        $releaseMetadata = self::releaseMetadataStatus();
+        if (! $releaseMetadata['readable']) {
+            $actions[] = [
+                'id' => 'release_metadata',
+                'label' => 'Restore release metadata',
+                'reason' => $releaseMetadata['message'],
+            ];
+        }
+
         $envPath = self::environmentPath($config);
         $envValues = is_file($envPath) ? self::parseEnvString((string) file_get_contents($envPath)) : [];
         $appKey = trim((string) ($envValues['APP_KEY'] ?? ''));
@@ -1939,6 +2162,15 @@ PHP;
 
         foreach ($actions as $action) {
             switch ($action['id']) {
+                case 'release_metadata':
+                    $releaseResult = self::restoreReleaseMetadata();
+                    $performed[] = [
+                        'id' => 'release_metadata',
+                        'label' => 'Restore release metadata',
+                        'result' => $releaseResult,
+                    ];
+                    break;
+
                 case 'app_key':
                     $envResult = self::writeEnvironment($config);
                     $performed[] = [
