@@ -15,6 +15,16 @@
   "release_date": "2026-05-15",
   "release_name": "Kit Setup Installer Contract",
   "type": "laravel",
+  "repository": {
+    "type": "github",
+    "owner": "jybanez",
+    "repo": "realtime.pbb.ph",
+    "url": "https://github.com/jybanez/realtime.pbb.ph"
+  },
+  "updates": {
+    "source": "github-releases",
+    "channel": "testing"
+  },
   "update": {
     "contract_version": 1,
     "channel": "testing",

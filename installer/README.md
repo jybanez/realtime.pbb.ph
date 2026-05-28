@@ -57,6 +57,8 @@ Installer ZIP builds also exclude local package-builder and acceptance tooling s
 
 For Kit Updater handoff, publish canonical app bundles from GitHub Releases rather than raw branch files. The handoff should include the ZIP asset URL, archive SHA-256, size, `release.json` version/build id/build commit, internal checksum scan result, update compatibility, service restart requirement, Data Prep rerun requirement, and any irreversible migration warning. The checked-in `release.json` carries stable identity and update contract defaults; `installer/build-installer.ps1` stamps unique build metadata into the packaged `release.json`.
 
+Root `release.json` also declares the official GitHub update source under `repository` and `updates`. Kit Setup preserves those fields into install state so production Updater flows can discover future Realtime bundles from the official GitHub Releases page.
+
 Optional initial data can be populated after install with:
 
 ```powershell
