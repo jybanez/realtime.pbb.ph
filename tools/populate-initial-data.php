@@ -153,7 +153,7 @@ function list_records(array $config): array
 
     if ($sourcePath === null && empty($populate['clients']) && is_file(default_source_path())) {
         $sourcePath = default_source_path();
-        $sourceId = 'packaged_hotline_client_data';
+        $sourceId = 'packaged_pbb_client_data';
         $usedDefaultSource = true;
     }
 

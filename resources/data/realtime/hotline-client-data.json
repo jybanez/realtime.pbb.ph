@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "source": "pbb-realtime-hotline-client-data",
-  "description": "Standalone Data Prep source for the PBB Hotline client profile, policies, and project scopes in PBB Realtime.",
+  "source": "pbb-realtime-pbb-client-data",
+  "description": "Standalone Data Prep source for PBB app client profiles, policies, and project scopes in PBB Realtime.",
   "clients": [
     {
       "client_code": "clt_PBB_HOTLINE",
@@ -309,6 +309,111 @@
             "timeout_seconds": 8,
             "verify_tls": true
           }
+        }
+      ]
+    },
+    {
+      "client_code": "clt_PBB_SUPPORT",
+      "project_code": "prj_PBB_SUPPORT",
+      "name": "PBB Support",
+      "status": "active",
+      "description": "PBB Support integration client for support request coordination, admin collaboration, and server-side realtime events.",
+      "integration_owner": "PBB Support System",
+      "integration_notes": "Packaged reference data for Kit Setup standalone Data Prep. Kit should supply a Support-specific backend ingress secret at install time.",
+      "issuer_identity": "support.pbb.ph",
+      "token_issuance_mode": "app_backend_signed",
+      "trusted_signing_profile": "support.pbb.ph",
+      "trust_notes": "Support backend issues Realtime JWTs for the Support project scopes.",
+      "allowed_origins": ["https://support.pbb.ph"],
+      "origin_policy_mode": "allowlist",
+      "policy_profile_code": "pol_SUPPORT_ADMIN",
+      "capability_profile_code": "support-admin-capabilities",
+      "room_policy_profile_code": "support-admin-rooms",
+      "policies": [
+        {
+          "policy_code": "pol_SUPPORT_SERVER",
+          "name": "Support Server Policy",
+          "status": "active",
+          "description": "Policy for Support server-originated request, lifecycle, delivery, and coordination events.",
+          "policy_category": "support.server",
+          "owner_team": "PBB Support System",
+          "capability_profile": {
+            "session": ["connect"],
+            "rooms": ["join", "leave", "publish"],
+            "presence": ["publish", "subscribe"],
+            "events": ["publish", "broadcast"],
+            "chat": ["publish", "subscribe"],
+            "support": ["request", "lifecycle", "delivery", "coordinate"]
+          },
+          "room_policy_profile": {
+            "mode": "allowlist",
+            "prefixes": ["support.", "support.request.", "support.lifecycle.", "support.delivery.", "chat.thread.support."]
+          },
+          "rate_limit_profile": {
+            "event_publish_per_minute": 240,
+            "session_pings_per_minute": 60
+          },
+          "session_limit_profile": {
+            "max_concurrent_sessions": 4,
+            "idle_timeout_minutes": 15
+          },
+          "allow_deny_mode": "allowlist"
+        },
+        {
+          "policy_code": "pol_SUPPORT_ADMIN",
+          "name": "Support Admin Policy",
+          "status": "active",
+          "description": "Policy for authenticated Support admin and operator workspaces.",
+          "policy_category": "support.admin",
+          "owner_team": "PBB Support System",
+          "capability_profile": {
+            "session": ["connect"],
+            "rooms": ["join", "leave", "publish"],
+            "presence": ["publish", "subscribe"],
+            "chat": ["publish", "subscribe"],
+            "events": ["publish", "broadcast"],
+            "support": ["observe", "assign", "update", "coordinate"]
+          },
+          "room_policy_profile": {
+            "mode": "allowlist",
+            "prefixes": ["support.", "support.request.", "support.lifecycle.", "support.delivery.", "chat.thread.support."]
+          },
+          "rate_limit_profile": {
+            "session_pings_per_minute": 60,
+            "event_publish_per_minute": 180,
+            "chat_messages_per_minute": 120
+          },
+          "session_limit_profile": {
+            "max_concurrent_sessions": 6,
+            "idle_timeout_minutes": 30
+          },
+          "allow_deny_mode": "allowlist"
+        }
+      ],
+      "projects": [
+        {
+          "project_code": "prj_SUPPORT_SERVER",
+          "name": "Support Server",
+          "status": "active",
+          "description": "Server-side Support project scope for backend broadcasts, request lifecycle events, and app-owned event ingress.",
+          "scope_notes": "Used by Support backend services and Kit Data Prep integrations.",
+          "allowed_origins": [],
+          "origin_policy_mode": "no_browser",
+          "policy_profile_code": "pol_SUPPORT_SERVER",
+          "capability_profile_code": "support-server-capabilities",
+          "room_policy_profile_code": "support-server-rooms"
+        },
+        {
+          "project_code": "prj_SUPPORT_ADMIN",
+          "name": "Support Admin",
+          "status": "active",
+          "description": "Authenticated Support admin project scope for request triage, operator collaboration, and live lifecycle visibility.",
+          "scope_notes": "Used by authenticated Support admin and operator workspace clients.",
+          "allowed_origins": ["https://support.pbb.ph"],
+          "origin_policy_mode": "allowlist",
+          "policy_profile_code": "pol_SUPPORT_ADMIN",
+          "capability_profile_code": "support-admin-capabilities",
+          "room_policy_profile_code": "support-admin-rooms"
         }
       ]
     }

@@ -85,7 +85,7 @@
         "path": "tools/populate-initial-data.php",
         "config_section": "realtime.populate",
         "default_source": "resources/data/realtime/hotline-client-data.json",
-        "description": "Prepare the PBB Hotline Realtime client profile, policies, and project scopes."
+        "description": "Prepare packaged PBB Realtime client profiles, policies, and project scopes for Hotline and Support."
       },
       "apply_settings": {
         "path": "tools/data-prep/apply-settings.php",
@@ -96,7 +96,7 @@
         "path": "tools/data-prep/verify.php",
         "config_section": "realtime.data_prep.verify",
         "default_source": "resources/data/realtime/hotline-client-data.json",
-        "description": "Verify the PBB Hotline Realtime client profile, policies, and project scopes."
+        "description": "Verify packaged PBB Realtime client profiles, policies, and project scopes for Hotline and Support."
       }
     }
   },
