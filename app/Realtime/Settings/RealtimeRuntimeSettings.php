@@ -18,6 +18,12 @@ class RealtimeRuntimeSettings
         'ca_bundle' => 'maestro_telemetry_ca_bundle',
     ];
 
+    private const ACCOUNT_ADMIN_KEYS = [
+        'enabled' => 'account_admin_api_enabled',
+        'token' => 'account_admin_api_token',
+        'client' => 'account_admin_api_client',
+    ];
+
     /**
      * @return array<string, mixed>
      */
@@ -83,6 +89,45 @@ class RealtimeRuntimeSettings
                     ['setting_value' => $token]
                 );
             }
+        }
+    }
+
+    /**
+     * @return array{enabled: bool, token: string, client: string}
+     */
+    public function accountAdmin(): array
+    {
+        $stored = $this->values(array_values(self::ACCOUNT_ADMIN_KEYS));
+
+        return [
+            'enabled' => $this->boolValue($stored[self::ACCOUNT_ADMIN_KEYS['enabled']] ?? null) ?? false,
+            'token' => $this->stringValue($stored[self::ACCOUNT_ADMIN_KEYS['token']] ?? null) ?? '',
+            'client' => $this->stringValue($stored[self::ACCOUNT_ADMIN_KEYS['client']] ?? null) ?? 'pbb-account',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    public function updateAccountAdmin(array $values): void
+    {
+        $updates = [
+            self::ACCOUNT_ADMIN_KEYS['enabled'] => isset($values['enabled']) ? ($values['enabled'] ? '1' : '0') : null,
+            self::ACCOUNT_ADMIN_KEYS['client'] => $this->stringValue($values['client'] ?? null) ?? 'pbb-account',
+        ];
+
+        foreach ($updates as $key => $value) {
+            RealtimeRuntimeSetting::query()->updateOrCreate(
+                ['setting_key' => $key],
+                ['setting_value' => $value]
+            );
+        }
+
+        if (array_key_exists('token', $values)) {
+            RealtimeRuntimeSetting::query()->updateOrCreate(
+                ['setting_key' => self::ACCOUNT_ADMIN_KEYS['token']],
+                ['setting_value' => $this->stringValue($values['token']) ?? '']
+            );
         }
     }
 

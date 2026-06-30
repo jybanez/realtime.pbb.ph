@@ -2,6 +2,7 @@
   "schema_version": 1,
   "app": "pbb-realtime",
   "name": "PBB Realtime",
+  "display_name": "Realtime",
   "milestone": 1,
   "version": "1.0.0",
   "display_version": "v1-1.0.0",
@@ -31,10 +32,19 @@
     "immutable_release": false,
     "from_versions": ["1.0.0"],
     "compatibility": "same-version-rebuild",
-    "requires_database_migration": false,
+    "requires_database_migration": true,
     "requires_data_prep_rerun": true,
     "requires_service_restart": true,
-    "rollback_supported": true
+    "rollback_supported": false,
+    "database_migration": {
+      "policy": "additive",
+      "summary": "Adds Account identity/status columns to users and applies Realtime queue dispatch indexes where missing.",
+      "tables": {
+        "users": ["pbb_user_id", "status"],
+        "realtime_media_chunks": ["status_id index"],
+        "realtime_server_events": ["status_id index"]
+      }
+    }
   },
   "requires": {
     "os": ["windows", "linux"],
@@ -44,7 +54,60 @@
     "node": "not-required-assets-built",
     "composer": "not-required-vendor-bundled",
     "apps": {
-      "pbb-maestro": "optional-for-telemetry"
+      "pbb-maestro": "optional-for-telemetry",
+      "pbb-account": "optional-for-sso-and-app-admin"
+    }
+  },
+  "landing": {
+    "launcher": {
+      "logo_kind": "mark",
+      "icon": "radio-tower",
+      "primary_launch_url": "https://realtime.pbb.ph/admin",
+      "audience": ["admin", "operator"]
+    },
+    "public_gateway": {
+      "enabled": false
+    }
+  },
+  "account": {
+    "sso": {
+      "enabled_by_default": false,
+      "client_id": "pbb-realtime",
+      "base_url": "https://realtime.pbb.ph",
+      "redirect_uri": "https://realtime.pbb.ph/auth/account/callback",
+      "post_logout_redirect_uri": "https://realtime.pbb.ph",
+      "scopes": ["openid", "profile"],
+      "env": {
+        "enabled": "PBB_ACCOUNT_SSO_ENABLED",
+        "base_url": "PBB_ACCOUNT_BASE_URL",
+        "client_id": "PBB_ACCOUNT_CLIENT_ID",
+        "client_secret": "PBB_ACCOUNT_CLIENT_SECRET",
+        "redirect_uri": "PBB_ACCOUNT_REDIRECT_URI",
+        "post_logout_redirect_uri": "PBB_ACCOUNT_POST_LOGOUT_REDIRECT_URI",
+        "scopes": "PBB_ACCOUNT_SCOPES",
+        "ca_bundle": "PBB_ACCOUNT_CA_BUNDLE"
+      }
+    },
+    "app_admin": {
+      "enabled_by_default": false,
+      "base_url": "https://realtime.pbb.ph",
+      "settings_store": "realtime_runtime_settings",
+      "settings": {
+        "enabled": "account_admin_api_enabled",
+        "token": "account_admin_api_token",
+        "client": "account_admin_api_client"
+      },
+      "expected_client_header": "pbb-account",
+      "routes": {
+        "meta": "/api/account-admin/meta",
+        "lookup": "/api/account-admin/users/{pbb_user_id}",
+        "provision": "/api/account-admin/users/{pbb_user_id}",
+        "role": "/api/account-admin/users/{pbb_user_id}/role",
+        "status": "/api/account-admin/users/{pbb_user_id}/status"
+      },
+      "roles": ["admin", "regular"],
+      "statuses": ["active", "disabled"],
+      "notes": "user_type is the Account-managed Realtime role. is_operator is a local admin-surface access capability, not an Account role. App-admin runtime auth reads DB settings only."
     }
   },
   "installer": {
@@ -57,7 +120,7 @@
       "baseline_schema": {
         "path": "database/schema/mysql-schema.sql",
         "engine": "mysql",
-        "generated_at": "2026-05-18T06:56:43.6536724Z",
+        "generated_at": "2026-06-30T16:48:14.4753286Z",
         "source": "current-release-schema"
       },
       "upgrade_strategy": "laravel_migrations",

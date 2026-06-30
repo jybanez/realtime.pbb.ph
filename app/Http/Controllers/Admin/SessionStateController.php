@@ -26,6 +26,7 @@ class SessionStateController extends Controller
                     'email' => $user->email,
                     'is_operator' => (bool) $user->is_operator,
                     'user_type' => (string) ($user->user_type ?? ''),
+                    'status' => (string) ($user->status ?? 'active'),
                     'is_admin' => method_exists($user, 'isAdmin') ? $user->isAdmin() : false,
                     'assigned_clients' => $user->realtimeClients
                         ->map(fn ($client) => [

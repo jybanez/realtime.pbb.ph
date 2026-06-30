@@ -38,6 +38,7 @@ class UserController extends Controller
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'user_type' => $data['user_type'],
+            'status' => 'active',
             'is_operator' => true,
         ]);
 
@@ -79,6 +80,7 @@ class UserController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'user_type' => $data['user_type'],
+            'status' => $user->status ?: 'active',
             'is_operator' => true,
         ];
 
@@ -136,6 +138,7 @@ class UserController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'user_type' => (string) $user->user_type,
+            'status' => (string) ($user->status ?: 'active'),
             'is_operator' => (bool) $user->is_operator,
             'is_admin' => $user->isAdmin(),
             'assigned_client_ids' => $user->realtimeClients->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
@@ -157,6 +160,7 @@ class UserController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'user_type' => (string) $user->user_type,
+            'status' => (string) ($user->status ?: 'active'),
             'is_operator' => (bool) $user->is_operator,
             'assigned_client_ids' => $user->realtimeClients->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
         ];

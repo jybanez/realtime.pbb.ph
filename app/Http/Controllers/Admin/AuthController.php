@@ -32,7 +32,7 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        if (! $request->user()?->is_operator) {
+        if (! $request->user()?->is_operator || (method_exists($request->user(), 'isActive') && ! $request->user()->isActive())) {
             Auth::logout();
             throw ValidationException::withMessages([
                 'email' => __('This account is not authorized for the PBB Realtime admin surface.'),

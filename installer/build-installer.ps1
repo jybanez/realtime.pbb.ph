@@ -45,6 +45,7 @@ $Items = @(
     "docs\\pbb-realtime-installer-clean-windows-host-checklist.md",
     "docs\\pbb-realtime-installer-clean-linux-host-checklist.md",
     "docs\\pbb-realtime-data-prep-contract.md",
+    "docs\\pbb-realtime-account-integration.md",
     ".env.example",
     "release.json",
     "checksums.sha256",

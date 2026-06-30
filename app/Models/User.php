@@ -18,11 +18,13 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
+        'pbb_user_id',
         'name',
         'email',
         'password',
         'is_operator',
         'user_type',
+        'status',
     ];
 
     /**
@@ -65,7 +67,12 @@ class User extends Authenticatable
 
     public function canAccessAdminSurface(): bool
     {
-        return $this->isAdmin() || (bool) $this->is_operator;
+        return $this->isActive() && ($this->isAdmin() || (bool) $this->is_operator);
+    }
+
+    public function isActive(): bool
+    {
+        return (string) ($this->status ?? 'active') === 'active';
     }
 
     public function canAccessClient(int $clientId): bool

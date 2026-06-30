@@ -27,7 +27,7 @@ CREATE TABLE `migrations` (
   `migration` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `batch` int(11) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `password_reset_tokens`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -81,7 +81,7 @@ CREATE TABLE `realtime_audit_events` (
   UNIQUE KEY `realtime_audit_events_audit_id_unique` (`audit_id`),
   KEY `realtime_audit_events_actor_user_id_foreign` (`actor_user_id`),
   CONSTRAINT `realtime_audit_events_actor_user_id_foreign` FOREIGN KEY (`actor_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6533 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `realtime_client_user`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -98,7 +98,7 @@ CREATE TABLE `realtime_client_user` (
   KEY `realtime_client_user_user_id_foreign` (`user_id`),
   CONSTRAINT `realtime_client_user_client_id_foreign` FOREIGN KEY (`client_id`) REFERENCES `realtime_clients` (`id`) ON DELETE CASCADE,
   CONSTRAINT `realtime_client_user_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `realtime_clients`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -137,7 +137,7 @@ CREATE TABLE `realtime_clients` (
   CONSTRAINT `realtime_clients_created_by_user_id_foreign` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `realtime_clients_last_reviewed_by_user_id_foreign` FOREIGN KEY (`last_reviewed_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `realtime_clients_updated_by_user_id_foreign` FOREIGN KEY (`updated_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `realtime_media_chunks`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -169,7 +169,7 @@ CREATE TABLE `realtime_media_chunks` (
   KEY `realtime_media_chunks_session_id_index` (`session_id`),
   KEY `realtime_media_chunks_status_index` (`status`),
   KEY `realtime_media_chunks_status_id_index` (`status`,`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=107 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `realtime_policies`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -200,7 +200,7 @@ CREATE TABLE `realtime_policies` (
   CONSTRAINT `realtime_policies_client_id_foreign` FOREIGN KEY (`client_id`) REFERENCES `realtime_clients` (`id`) ON DELETE SET NULL,
   CONSTRAINT `realtime_policies_created_by_user_id_foreign` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `realtime_policies_updated_by_user_id_foreign` FOREIGN KEY (`updated_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `realtime_projects`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -236,7 +236,7 @@ CREATE TABLE `realtime_projects` (
   CONSTRAINT `realtime_projects_created_by_user_id_foreign` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `realtime_projects_last_reviewed_by_user_id_foreign` FOREIGN KEY (`last_reviewed_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `realtime_projects_updated_by_user_id_foreign` FOREIGN KEY (`updated_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `realtime_runtime_settings`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -249,18 +249,18 @@ CREATE TABLE `realtime_runtime_settings` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `realtime_runtime_settings_setting_key_unique` (`setting_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `realtime_server_events`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `realtime_server_events` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `publish_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `client_code` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `project_code` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `room` varchar(180) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `event_type` varchar(180) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `publish_id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `client_code` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `project_code` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `room` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `event_type` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `event_id` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `status` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `attempts` int(10) unsigned NOT NULL DEFAULT '0',
@@ -280,7 +280,7 @@ CREATE TABLE `realtime_server_events` (
   KEY `realtime_server_events_status_index` (`status`),
   KEY `realtime_server_events_client_code_created_at_index` (`client_code`,`created_at`),
   KEY `realtime_server_events_status_id_index` (`status`,`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4726 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `realtime_sessions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -302,7 +302,7 @@ CREATE TABLE `realtime_sessions` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `realtime_sessions_session_id_unique` (`session_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3575 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `realtime_usage_buckets`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -311,8 +311,8 @@ CREATE TABLE `realtime_usage_buckets` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `bucket_start` datetime NOT NULL,
   `bucket_granularity` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `client_code` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `project_code` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `client_code` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `project_code` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `event_type` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
   `event_count` bigint(20) unsigned NOT NULL DEFAULT '0',
   `bytes_in` bigint(20) unsigned NOT NULL DEFAULT '0',
@@ -327,25 +327,28 @@ CREATE TABLE `realtime_usage_buckets` (
   KEY `realtime_usage_buckets_client_code_index` (`client_code`),
   KEY `realtime_usage_buckets_project_code_index` (`project_code`),
   KEY `realtime_usage_buckets_event_type_index` (`event_type`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2606 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `users`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `users` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `pbb_user_id` varchar(26) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `email` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `email_verified_at` timestamp NULL DEFAULT NULL,
   `password` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `is_operator` tinyint(1) NOT NULL DEFAULT '0',
   `user_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'regular',
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
   `remember_token` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `users_email_unique` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `users_email_unique` (`email`),
+  UNIQUE KEY `users_pbb_user_id_unique` (`pbb_user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -354,27 +357,43 @@ CREATE TABLE `users` (
 /*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (1,'2014_10_12_000000_create_users_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (2,'2014_10_12_100000_create_password_reset_tokens_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (3,'2019_08_19_000000_create_failed_jobs_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (4,'2019_12_14_000001_create_personal_access_tokens_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (5,'2026_03_28_000001_add_is_operator_to_users_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (6,'2026_03_28_000100_create_realtime_clients_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (7,'2026_03_28_000110_create_realtime_policies_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (8,'2026_03_28_000120_create_realtime_sessions_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (9,'2026_03_28_000130_create_realtime_audit_events_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (10,'2026_03_29_000100_create_realtime_projects_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (11,'2026_03_30_000100_backfill_generated_client_codes',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (12,'2026_03_30_000200_backfill_generated_project_and_policy_codes',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (13,'2026_03_31_000300_create_realtime_usage_buckets_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (14,'2026_03_31_000400_add_client_id_to_realtime_policies_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (15,'2026_04_02_000100_add_user_type_to_users_and_create_realtime_client_user_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (16,'2026_04_02_001200_add_display_name_to_realtime_sessions_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (17,'2026_04_06_141500_add_backend_ingress_secret_hash_to_realtime_clients_and_create_realtime_server_events_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (18,'2026_04_07_040000_create_realtime_runtime_settings_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (19,'2026_04_10_020000_add_client_code_created_at_index_to_realtime_server_events_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (20,'2026_04_10_030000_add_backend_ingress_secret_digest_to_realtime_clients_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (21,'2026_04_16_000200_add_media_ingest_settings_to_realtime_projects_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (22,'2026_04_17_170000_create_realtime_media_chunks_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (23,'2026_04_23_130000_add_realtime_queue_dispatch_indexes',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (24,'2026_05_11_160000_add_product_query_forwarding_settings_to_realtime_projects_table',1);
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+LOCK TABLES `migrations` WRITE;
+/*!40000 ALTER TABLE `migrations` DISABLE KEYS */;
+INSERT INTO `migrations` VALUES (1,'2014_10_12_000000_create_users_table',1);
+INSERT INTO `migrations` VALUES (2,'2014_10_12_100000_create_password_reset_tokens_table',1);
+INSERT INTO `migrations` VALUES (3,'2019_08_19_000000_create_failed_jobs_table',1);
+INSERT INTO `migrations` VALUES (4,'2019_12_14_000001_create_personal_access_tokens_table',1);
+INSERT INTO `migrations` VALUES (5,'2026_03_28_000001_add_is_operator_to_users_table',1);
+INSERT INTO `migrations` VALUES (6,'2026_03_28_000100_create_realtime_clients_table',1);
+INSERT INTO `migrations` VALUES (7,'2026_03_28_000110_create_realtime_policies_table',1);
+INSERT INTO `migrations` VALUES (8,'2026_03_28_000120_create_realtime_sessions_table',1);
+INSERT INTO `migrations` VALUES (9,'2026_03_28_000130_create_realtime_audit_events_table',1);
+INSERT INTO `migrations` VALUES (10,'2026_03_29_000100_create_realtime_projects_table',1);
+INSERT INTO `migrations` VALUES (11,'2026_03_30_000100_backfill_generated_client_codes',1);
+INSERT INTO `migrations` VALUES (12,'2026_03_30_000200_backfill_generated_project_and_policy_codes',1);
+INSERT INTO `migrations` VALUES (13,'2026_03_31_000300_create_realtime_usage_buckets_table',1);
+INSERT INTO `migrations` VALUES (14,'2026_03_31_000400_add_client_id_to_realtime_policies_table',1);
+INSERT INTO `migrations` VALUES (15,'2026_04_02_000100_add_user_type_to_users_and_create_realtime_client_user_table',1);
+INSERT INTO `migrations` VALUES (16,'2026_04_02_001200_add_display_name_to_realtime_sessions_table',1);
+INSERT INTO `migrations` VALUES (17,'2026_04_06_141500_add_backend_ingress_secret_hash_to_realtime_clients_and_create_realtime_server_events_table',1);
+INSERT INTO `migrations` VALUES (18,'2026_04_07_040000_create_realtime_runtime_settings_table',1);
+INSERT INTO `migrations` VALUES (19,'2026_04_10_020000_add_client_code_created_at_index_to_realtime_server_events_table',1);
+INSERT INTO `migrations` VALUES (20,'2026_04_10_030000_add_backend_ingress_secret_digest_to_realtime_clients_table',1);
+INSERT INTO `migrations` VALUES (21,'2026_04_16_000200_add_media_ingest_settings_to_realtime_projects_table',2);
+INSERT INTO `migrations` VALUES (22,'2026_04_17_170000_create_realtime_media_chunks_table',3);
+INSERT INTO `migrations` VALUES (23,'2026_05_11_160000_add_product_query_forwarding_settings_to_realtime_projects_table',4);
+INSERT INTO `migrations` VALUES (24,'2026_04_23_130000_add_realtime_queue_dispatch_indexes',5);
+INSERT INTO `migrations` VALUES (25,'2026_07_01_000001_add_account_identity_and_status_to_users_table',5);
+/*!40000 ALTER TABLE `migrations` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;

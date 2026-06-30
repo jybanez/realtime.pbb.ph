@@ -67,6 +67,7 @@ class Kernel extends HttpKernel
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'operator' => \App\Http\Middleware\EnsureOperator::class,
+        'account-admin' => \App\Http\Middleware\VerifyAccountAdminService::class,
     ];
 
     protected function sendRequestThroughRouter($request)
