@@ -341,6 +341,10 @@ const state = {
     route: routeState,
     authenticated: false,
     account: null,
+    accountSso: {
+        enabled: false,
+        redirectUrl: "/auth/account/redirect",
+    },
     sessionLifetimeMinutes: 120,
     keepaliveThresholdSeconds: 120,
     lastServerTouchAt: Date.now(),
@@ -740,7 +744,7 @@ function renderStatusPage() {
             navigateShell(WEB.dashboard);
             return;
         }
-        void openLoginModal();
+        startLoginFlow();
     });
 
     document.getElementById("statusSdkDocsButton")?.addEventListener("click", () => {
@@ -782,6 +786,7 @@ async function bootstrapAdminSession(redirectOnFailure = true) {
 
     state.authenticated = Boolean(data?.auth?.authenticated);
     state.account = normalizeAccount(data?.auth?.account);
+    state.accountSso = normalizeAccountSso(data?.settings?.accountSso);
     state.sessionLifetimeMinutes = Math.max(1, Number(data?.settings?.sessionLifetimeMinutes ?? 120) || 120);
     state.keepaliveThresholdSeconds = Math.max(
         15,
@@ -818,6 +823,22 @@ function normalizeAccount(account) {
         user_type: String(account.user_type || ""),
         is_admin: Boolean(account.is_admin),
         assigned_clients: Array.isArray(account.assigned_clients) ? account.assigned_clients : [],
+    };
+}
+
+function normalizeAccountSso(accountSso) {
+    if (!accountSso || typeof accountSso !== "object") {
+        return {
+            enabled: false,
+            redirectUrl: "/auth/account/redirect",
+        };
+    }
+
+    return {
+        enabled: Boolean(accountSso.enabled),
+        clientId: String(accountSso.clientId || "pbb-realtime"),
+        baseUrl: String(accountSso.baseUrl || "https://account.pbb.ph"),
+        redirectUrl: String(accountSso.redirectUrl || "/auth/account/redirect"),
     };
 }
 
@@ -1135,7 +1156,7 @@ function renderNavbar() {
         },
         onAction(action) {
             if (action.id === "login") {
-                void openLoginModal();
+                startLoginFlow();
             } else if (action.id === "open-admin") {
                 navigateShell(WEB.dashboard);
             } else if (action.id === "settings") {
@@ -7184,7 +7205,43 @@ function getCurrentListPage() {
 }
 
 function redirectToLogin() {
+    if (isAccountSsoEnabled()) {
+        beginAccountSso();
+        return;
+    }
+
     void switchToStatusShell();
+}
+
+function startLoginFlow() {
+    if (isAccountSsoEnabled()) {
+        beginAccountSso();
+        return;
+    }
+
+    void openLoginModal();
+}
+
+function isAccountSsoEnabled() {
+    return Boolean(state.accountSso?.enabled && state.accountSso?.redirectUrl);
+}
+
+function beginAccountSso() {
+    const redirectUrl = new URL(String(state.accountSso?.redirectUrl || "/auth/account/redirect"), window.location.origin);
+    const returnPath = normalizeAccountReturnPath(window.location.pathname, window.location.search);
+    redirectUrl.searchParams.set("return", returnPath);
+    window.location.href = `${redirectUrl.pathname}${redirectUrl.search}`;
+}
+
+function normalizeAccountReturnPath(pathname, search = "") {
+    const path = normalizePath(pathname || WEB.dashboard);
+    const suffix = String(search || "");
+
+    if (path.startsWith("/admin")) {
+        return `${path}${suffix}`;
+    }
+
+    return WEB.dashboard;
 }
 
 function navigateShell(targetPath) {
@@ -7205,6 +7262,11 @@ function navigateShell(targetPath) {
 }
 
 async function openLoginModal() {
+    if (isAccountSsoEnabled()) {
+        beginAccountSso();
+        return;
+    }
+
     if (state.loginModalOpen) {
         return;
     }

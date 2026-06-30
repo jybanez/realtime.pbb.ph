@@ -3,15 +3,17 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Realtime\Settings\RealtimeRuntimeSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class SessionStateController extends Controller
 {
-    public function bootstrap(Request $request): JsonResponse
+    public function bootstrap(Request $request, RealtimeRuntimeSettings $settings): JsonResponse
     {
         $user = $request->user();
         $user?->loadMissing('realtimeClients');
+        $accountSso = $settings->accountSso();
 
         return response()->json([
             'app' => [
@@ -45,6 +47,12 @@ class SessionStateController extends Controller
                 'sessionLifetimeMinutes' => max(1, (int) config('session.lifetime', 120)),
                 'keepaliveThresholdSeconds' => $this->keepaliveThresholdSeconds(),
                 'heartbeatIntervalSeconds' => (int) config('realtime.heartbeat_interval_seconds', 30),
+                'accountSso' => [
+                    'enabled' => (bool) ($accountSso['enabled'] ?? false),
+                    'clientId' => (string) ($accountSso['client_id'] ?? 'pbb-realtime'),
+                    'baseUrl' => (string) ($accountSso['base_url'] ?? 'https://account.pbb.ph'),
+                    'redirectUrl' => route('account.redirect', [], false),
+                ],
             ],
         ]);
     }

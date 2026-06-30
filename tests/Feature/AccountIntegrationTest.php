@@ -185,6 +185,24 @@ class AccountIntegrationTest extends TestCase
             ->assertJsonMissing(['token' => 'service-token']);
     }
 
+    public function test_bootstrap_exposes_sanitized_account_sso_login_state(): void
+    {
+        $this->getJson('/api/admin/bootstrap')
+            ->assertOk()
+            ->assertJsonPath('settings.accountSso.enabled', false)
+            ->assertJsonPath('settings.accountSso.redirectUrl', '/auth/account/redirect');
+
+        $this->enableAccountSso();
+
+        $this->getJson('/api/admin/bootstrap')
+            ->assertOk()
+            ->assertJsonPath('settings.accountSso.enabled', true)
+            ->assertJsonPath('settings.accountSso.clientId', 'pbb-realtime')
+            ->assertJsonPath('settings.accountSso.baseUrl', 'https://account.pbb.ph')
+            ->assertJsonPath('settings.accountSso.redirectUrl', '/auth/account/redirect')
+            ->assertJsonMissing(['client_secret' => 'oauth-secret']);
+    }
+
     public function test_disabled_user_cannot_login_to_admin_surface(): void
     {
         $user = User::factory()->admin()->create([

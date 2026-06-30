@@ -48,6 +48,8 @@ SSO runtime config is read from encrypted app-local DB settings in `realtime_run
 
 Operators can view/update these values from the admin navbar Realtime settings modal. `account_sso_client_secret` is write-only in the UI: the modal only reports whether it is configured, and leaving the field blank preserves the stored secret.
 
+The public admin bootstrap response exposes a sanitized `settings.accountSso` block so the browser shell can choose the correct login UX. When `account_sso_enabled=true`, the status-page and navbar Sign In/Login actions redirect to `/auth/account/redirect` and preserve the current `/admin...` return path. When SSO is disabled, Realtime keeps the local operator login modal as the fallback.
+
 Packaged default is disabled. Kit or the operator must configure Account and Realtime together.
 
 ## App-Admin API
