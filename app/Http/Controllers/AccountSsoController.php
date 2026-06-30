@@ -16,7 +16,7 @@ class AccountSsoController extends Controller
 {
     public function redirect(Request $request, AccountClient $account): RedirectResponse
     {
-        abort_unless(config('account.enabled'), 404);
+        abort_unless((bool) ($account->ssoSettings()['enabled'] ?? false), 404);
 
         $request->session()->put('pbb_account.return_to', $this->safeReturnPath($request->query('return', '/admin')));
 
@@ -25,7 +25,7 @@ class AccountSsoController extends Controller
 
     public function callback(Request $request, AccountClient $account): RedirectResponse
     {
-        abort_unless(config('account.enabled'), 404);
+        abort_unless((bool) ($account->ssoSettings()['enabled'] ?? false), 404);
 
         try {
             $identity = $account->handleCallback($request, $request->query());
@@ -52,7 +52,7 @@ class AccountSsoController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        if (!config('account.enabled')) {
+        if (! (bool) ($account->ssoSettings()['enabled'] ?? false)) {
             return redirect('/');
         }
 

@@ -24,6 +24,28 @@ class RealtimeRuntimeSettings
         'client' => 'account_admin_api_client',
     ];
 
+    private const ACCOUNT_SSO_KEYS = [
+        'enabled' => 'account_sso_enabled',
+        'base_url' => 'account_sso_base_url',
+        'client_id' => 'account_sso_client_id',
+        'client_secret' => 'account_sso_client_secret',
+        'redirect_uri' => 'account_sso_redirect_uri',
+        'post_logout_redirect_uri' => 'account_sso_post_logout_redirect_uri',
+        'scopes' => 'account_sso_scopes',
+        'timeout_seconds' => 'account_sso_timeout_seconds',
+        'ca_bundle' => 'account_sso_ca_bundle',
+    ];
+
+    private const ACCOUNT_SSO_DEFAULTS = [
+        'enabled' => false,
+        'base_url' => 'https://account.pbb.ph',
+        'client_id' => 'pbb-realtime',
+        'redirect_uri' => 'https://realtime.pbb.ph/auth/account/callback',
+        'post_logout_redirect_uri' => 'https://realtime.pbb.ph',
+        'scopes' => ['openid', 'profile'],
+        'timeout_seconds' => 10,
+    ];
+
     /**
      * @return array<string, mixed>
      */
@@ -124,11 +146,80 @@ class RealtimeRuntimeSettings
         }
 
         if (array_key_exists('token', $values)) {
+            $token = $this->stringValue($values['token']);
+            if ($token !== null) {
+                RealtimeRuntimeSetting::query()->updateOrCreate(
+                    ['setting_key' => self::ACCOUNT_ADMIN_KEYS['token']],
+                    ['setting_value' => $token]
+                );
+            }
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function accountSso(): array
+    {
+        $stored = $this->values(array_values(self::ACCOUNT_SSO_KEYS));
+        $scopes = $this->stringListValue($stored[self::ACCOUNT_SSO_KEYS['scopes']] ?? null);
+        $secret = $this->stringValue($stored[self::ACCOUNT_SSO_KEYS['client_secret']] ?? null);
+
+        return [
+            'enabled' => $this->boolValue($stored[self::ACCOUNT_SSO_KEYS['enabled']] ?? null) ?? self::ACCOUNT_SSO_DEFAULTS['enabled'],
+            'base_url' => $this->stringValue($stored[self::ACCOUNT_SSO_KEYS['base_url']] ?? null) ?? self::ACCOUNT_SSO_DEFAULTS['base_url'],
+            'client_id' => $this->stringValue($stored[self::ACCOUNT_SSO_KEYS['client_id']] ?? null) ?? self::ACCOUNT_SSO_DEFAULTS['client_id'],
+            'client_secret' => $secret ?? '',
+            'client_secret_configured' => $secret !== null,
+            'redirect_uri' => $this->stringValue($stored[self::ACCOUNT_SSO_KEYS['redirect_uri']] ?? null) ?? self::ACCOUNT_SSO_DEFAULTS['redirect_uri'],
+            'post_logout_redirect_uri' => $this->stringValue($stored[self::ACCOUNT_SSO_KEYS['post_logout_redirect_uri']] ?? null) ?? self::ACCOUNT_SSO_DEFAULTS['post_logout_redirect_uri'],
+            'scopes' => $scopes ?: self::ACCOUNT_SSO_DEFAULTS['scopes'],
+            'timeout_seconds' => $this->intValue($stored[self::ACCOUNT_SSO_KEYS['timeout_seconds']] ?? null) ?? self::ACCOUNT_SSO_DEFAULTS['timeout_seconds'],
+            'ca_bundle' => $this->stringValue($stored[self::ACCOUNT_SSO_KEYS['ca_bundle']] ?? null) ?? '',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    public function updateAccountSso(array $values): void
+    {
+        $updates = [
+            self::ACCOUNT_SSO_KEYS['enabled'] => isset($values['enabled']) ? ($values['enabled'] ? '1' : '0') : null,
+            self::ACCOUNT_SSO_KEYS['base_url'] => $this->stringValue($values['base_url'] ?? null) ?? self::ACCOUNT_SSO_DEFAULTS['base_url'],
+            self::ACCOUNT_SSO_KEYS['client_id'] => $this->stringValue($values['client_id'] ?? null) ?? self::ACCOUNT_SSO_DEFAULTS['client_id'],
+            self::ACCOUNT_SSO_KEYS['redirect_uri'] => $this->stringValue($values['redirect_uri'] ?? null) ?? self::ACCOUNT_SSO_DEFAULTS['redirect_uri'],
+            self::ACCOUNT_SSO_KEYS['post_logout_redirect_uri'] => $this->stringValue($values['post_logout_redirect_uri'] ?? null) ?? self::ACCOUNT_SSO_DEFAULTS['post_logout_redirect_uri'],
+            self::ACCOUNT_SSO_KEYS['scopes'] => implode(' ', $this->stringListValue($values['scopes'] ?? null) ?: self::ACCOUNT_SSO_DEFAULTS['scopes']),
+            self::ACCOUNT_SSO_KEYS['timeout_seconds'] => $this->intStringValue($values['timeout_seconds'] ?? null) ?? (string) self::ACCOUNT_SSO_DEFAULTS['timeout_seconds'],
+            self::ACCOUNT_SSO_KEYS['ca_bundle'] => $this->stringValue($values['ca_bundle'] ?? null),
+        ];
+
+        foreach ($updates as $key => $value) {
             RealtimeRuntimeSetting::query()->updateOrCreate(
-                ['setting_key' => self::ACCOUNT_ADMIN_KEYS['token']],
-                ['setting_value' => $this->stringValue($values['token']) ?? '']
+                ['setting_key' => $key],
+                ['setting_value' => $value]
             );
         }
+
+        if (array_key_exists('client_secret', $values)) {
+            $secret = $this->stringValue($values['client_secret']);
+            if ($secret !== null) {
+                RealtimeRuntimeSetting::query()->updateOrCreate(
+                    ['setting_key' => self::ACCOUNT_SSO_KEYS['client_secret']],
+                    ['setting_value' => $secret]
+                );
+            }
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    public function updateAccountIntegration(array $values): void
+    {
+        $this->updateAccountSso((array) ($values['sso'] ?? []));
+        $this->updateAccountAdmin((array) ($values['app_admin'] ?? []));
     }
 
     /**
@@ -186,6 +277,26 @@ class RealtimeRuntimeSettings
         $number = $this->intValue($value);
 
         return $number === null ? null : (string) $number;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function stringListValue(mixed $value): array
+    {
+        if (is_array($value)) {
+            return array_values(array_filter(array_map(
+                fn ($item) => $this->stringValue($item),
+                $value
+            )));
+        }
+
+        $text = $this->stringValue($value);
+        if ($text === null) {
+            return [];
+        }
+
+        return array_values(array_filter(preg_split('/[\s,]+/', $text) ?: []));
     }
 
 }

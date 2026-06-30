@@ -86,6 +86,7 @@ Route::middleware(['auth', 'operator'])->prefix('api/admin')->name('admin.api.')
     Route::patch('/users/{user}', [UserController::class, 'update'])->name('users.update');
     Route::get('/operations', [BrowserDataController::class, 'operations'])->name('operations');
     Route::patch('/runtime-settings/maestro-telemetry', [RuntimeSettingsController::class, 'updateMaestroTelemetry'])->name('runtime-settings.maestro-telemetry.update');
+    Route::patch('/runtime-settings/account', [RuntimeSettingsController::class, 'updateAccountIntegration'])->name('runtime-settings.account.update');
     Route::get('/telemetry', [BrowserDataController::class, 'telemetry'])->name('telemetry');
     Route::get('/sdk-docs/{doc}', [BrowserDataController::class, 'sdkDoc'])->name('sdk.docs.show');
     Route::get('/sdk-downloads/backend-php', [BrowserDataController::class, 'downloadBackendSdk'])->name('sdk.downloads.backend');

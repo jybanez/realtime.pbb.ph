@@ -34,16 +34,19 @@ Browser SSO routes:
 - `GET /auth/account/callback`
 - `GET /auth/logout`
 
-SSO config is read from app config/env:
+SSO runtime config is read from encrypted app-local DB settings in `realtime_runtime_settings`, not from generic `.env` keys during request handling:
 
-- `PBB_ACCOUNT_SSO_ENABLED`
-- `PBB_ACCOUNT_BASE_URL`
-- `PBB_ACCOUNT_CLIENT_ID`
-- `PBB_ACCOUNT_CLIENT_SECRET`
-- `PBB_ACCOUNT_REDIRECT_URI`
-- `PBB_ACCOUNT_POST_LOGOUT_REDIRECT_URI`
-- `PBB_ACCOUNT_SCOPES`
-- `PBB_ACCOUNT_CA_BUNDLE`
+- `account_sso_enabled`
+- `account_sso_base_url`
+- `account_sso_client_id`
+- `account_sso_client_secret`
+- `account_sso_redirect_uri`
+- `account_sso_post_logout_redirect_uri`
+- `account_sso_scopes`
+- `account_sso_timeout_seconds`
+- `account_sso_ca_bundle`
+
+Operators can view/update these values from the admin navbar Realtime settings modal. `account_sso_client_secret` is write-only in the UI: the modal only reports whether it is configured, and leaving the field blank preserves the stored secret.
 
 Packaged default is disabled. Kit or the operator must configure Account and Realtime together.
 
@@ -64,6 +67,8 @@ Settings are stored in `realtime_runtime_settings`:
 - `account_admin_api_enabled`
 - `account_admin_api_token`
 - `account_admin_api_client`
+
+Operators can view/update these values from the admin navbar Realtime settings modal. `account_admin_api_token` is write-only in the UI: the modal only reports whether it is configured, and entering a new value rotates the stored service token.
 
 Packaged/default state should be:
 

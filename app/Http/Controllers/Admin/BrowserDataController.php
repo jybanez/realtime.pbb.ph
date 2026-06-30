@@ -317,9 +317,38 @@ class BrowserDataController extends Controller
                 ],
                 'runtime_settings' => [
                     'maestro_telemetry' => $settings->maestroTelemetry(),
+                    'account' => [
+                        'sso' => $this->accountSsoSettingsForResponse($settings),
+                        'app_admin' => $this->accountAdminSettingsForResponse($settings),
+                    ],
                 ],
             ],
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function accountSsoSettingsForResponse(RealtimeRuntimeSettings $settings): array
+    {
+        $sso = $settings->accountSso();
+        unset($sso['client_secret']);
+
+        return $sso;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function accountAdminSettingsForResponse(RealtimeRuntimeSettings $settings): array
+    {
+        $accountAdmin = $settings->accountAdmin();
+
+        return [
+            'enabled' => (bool) $accountAdmin['enabled'],
+            'client' => (string) $accountAdmin['client'],
+            'token_configured' => (string) $accountAdmin['token'] !== '',
+        ];
     }
 
     public function telemetry(RealtimeUsageTelemetry $telemetry): JsonResponse

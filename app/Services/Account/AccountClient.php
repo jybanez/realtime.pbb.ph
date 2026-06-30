@@ -2,25 +2,30 @@
 
 namespace App\Services\Account;
 
+use App\Realtime\Settings\RealtimeRuntimeSettings;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 use RuntimeException;
 
 class AccountClient
 {
+    public function __construct(private readonly RealtimeRuntimeSettings $settings)
+    {
+    }
+
     public function authorizationUrl(Request $request): string
     {
+        $config = $this->ssoSettings();
         $state = bin2hex(random_bytes(16));
         $request->session()->put('pbb_account.state', $state);
         $request->session()->save();
 
-        return rtrim((string) config('account.base_url'), '/').'/oauth/authorize?'.http_build_query([
-            'client_id' => config('account.client_id'),
-            'redirect_uri' => config('account.redirect_uri'),
+        return rtrim((string) $config['base_url'], '/').'/oauth/authorize?'.http_build_query([
+            'client_id' => $config['client_id'],
+            'redirect_uri' => $config['redirect_uri'],
             'response_type' => 'code',
-            'scope' => implode(' ', config('account.scopes', [])),
+            'scope' => implode(' ', $config['scopes']),
             'state' => $state,
         ]);
     }
@@ -56,7 +61,8 @@ class AccountClient
      */
     public function exchangeCode(string $code): array
     {
-        $secret = trim((string) config('account.client_secret'));
+        $config = $this->ssoSettings();
+        $secret = trim((string) $config['client_secret']);
         if ($secret === '') {
             throw new RuntimeException('Account client secret is not configured.');
         }
@@ -64,12 +70,12 @@ class AccountClient
         $response = $this->http()
             ->acceptJson()
             ->asJson()
-            ->post(rtrim((string) config('account.base_url'), '/').'/oauth/token', [
+            ->post(rtrim((string) $config['base_url'], '/').'/oauth/token', [
                 'grant_type' => 'authorization_code',
                 'code' => $code,
-                'client_id' => config('account.client_id'),
+                'client_id' => $config['client_id'],
                 'client_secret' => $secret,
-                'redirect_uri' => config('account.redirect_uri'),
+                'redirect_uri' => $config['redirect_uri'],
             ]);
 
         if (! $response->successful()) {
@@ -86,10 +92,12 @@ class AccountClient
 
     public function isReady(): bool
     {
+        $config = $this->ssoSettings();
+
         try {
             $response = $this->http()
                 ->acceptJson()
-                ->get(rtrim((string) config('account.base_url'), '/').'/up');
+                ->get(rtrim((string) $config['base_url'], '/').'/up');
         } catch (ConnectionException) {
             return false;
         }
@@ -99,22 +107,33 @@ class AccountClient
 
     public function logoutUrl(): string
     {
-        return rtrim((string) config('account.base_url'), '/').'/oauth/logout?'.http_build_query([
-            'client_id' => config('account.client_id'),
-            'post_logout_redirect_uri' => config('account.post_logout_redirect_uri') ?: url('/'),
+        $config = $this->ssoSettings();
+
+        return rtrim((string) $config['base_url'], '/').'/oauth/logout?'.http_build_query([
+            'client_id' => $config['client_id'],
+            'post_logout_redirect_uri' => $config['post_logout_redirect_uri'] ?: url('/'),
         ]);
     }
 
     private function http(): \Illuminate\Http\Client\PendingRequest
     {
-        $request = Http::timeout(max(1, (int) config('account.timeout_seconds', 10)));
-        $caBundle = trim((string) config('account.ca_bundle', ''));
+        $config = $this->ssoSettings();
+        $request = Http::timeout(max(1, (int) $config['timeout_seconds']));
+        $caBundle = trim((string) $config['ca_bundle']);
 
         if ($caBundle !== '') {
             $request = $request->withOptions(['verify' => $caBundle]);
         }
 
         return $request;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function ssoSettings(): array
+    {
+        return $this->settings->accountSso();
     }
 
     /**

@@ -62,6 +62,7 @@ const API = {
     userAudit: "/api/admin/users",
     operations: "/api/admin/operations",
     runtimeSettingsMaestroTelemetry: "/api/admin/runtime-settings/maestro-telemetry",
+    runtimeSettingsAccount: "/api/admin/runtime-settings/account",
     telemetry: "/api/admin/telemetry",
     sdkDocs: "/api/admin/sdk-docs",
     backendSdkDownload: "/api/admin/sdk-downloads/backend-php",
@@ -7473,16 +7474,181 @@ async function openRealtimeSettingsModal() {
         return;
     }
 
-    const currentSettings = state.route.kind === "operations"
-        ? (state.pageData?.data?.runtime_settings?.maestro_telemetry || {})
-        : ((await fetchPageData(API.operations))?.runtime_settings?.maestro_telemetry || {});
+    const runtimeSettings = state.route.kind === "operations"
+        ? (state.pageData?.data?.runtime_settings || {})
+        : ((await fetchPageData(API.operations))?.runtime_settings || {});
+    const currentSettings = runtimeSettings.maestro_telemetry || {};
+    const accountSettings = runtimeSettings.account || {};
+    const accountSso = accountSettings.sso || {};
+    const accountAdmin = accountSettings.app_admin || {};
 
     const modal = state.ui.formModal({
         title: "Realtime settings",
-        size: "sm",
+        size: "lg",
         submitLabel: "Save settings",
         busyMessage: "Saving Realtime settings...",
         rows: [
+            [
+                {
+                    type: "text",
+                    content: "Account SSO",
+                    span: 2,
+                },
+            ],
+            [
+                {
+                    type: "select",
+                    name: "account_sso_enabled",
+                    label: "Account SSO",
+                    value: String(accountSso.enabled ? "1" : "0"),
+                    options: [
+                        { label: "Enabled", value: "1" },
+                        { label: "Disabled", value: "0" },
+                    ],
+                },
+                {
+                    type: "input",
+                    name: "account_sso_client_id",
+                    label: "Client ID",
+                    value: String(accountSso.client_id || "pbb-realtime"),
+                    placeholder: "pbb-realtime",
+                },
+            ],
+            [
+                {
+                    type: "input",
+                    name: "account_sso_base_url",
+                    label: "Account base URL",
+                    input: "url",
+                    value: String(accountSso.base_url || "https://account.pbb.ph"),
+                    placeholder: "https://account.pbb.ph",
+                    span: 2,
+                },
+            ],
+            [
+                {
+                    type: "input",
+                    name: "account_sso_redirect_uri",
+                    label: "Callback URL",
+                    input: "url",
+                    value: String(accountSso.redirect_uri || "https://realtime.pbb.ph/auth/account/callback"),
+                    placeholder: "https://realtime.pbb.ph/auth/account/callback",
+                    span: 2,
+                },
+            ],
+            [
+                {
+                    type: "input",
+                    name: "account_sso_post_logout_redirect_uri",
+                    label: "Post-logout URL",
+                    input: "url",
+                    value: String(accountSso.post_logout_redirect_uri || "https://realtime.pbb.ph"),
+                    placeholder: "https://realtime.pbb.ph",
+                    span: 2,
+                },
+            ],
+            [
+                {
+                    type: "input",
+                    name: "account_sso_scopes",
+                    label: "OAuth scopes",
+                    value: Array.isArray(accountSso.scopes) ? accountSso.scopes.join(" ") : String(accountSso.scopes || "openid profile"),
+                    placeholder: "openid profile",
+                },
+                {
+                    type: "input",
+                    name: "account_sso_timeout_seconds",
+                    label: "Account timeout (s)",
+                    input: "number",
+                    value: String(accountSso.timeout_seconds || 10),
+                    min: 1,
+                    max: 120,
+                    step: 1,
+                },
+            ],
+            [
+                {
+                    type: "input",
+                    name: "account_sso_client_secret",
+                    label: "OAuth client secret",
+                    input: "password",
+                    value: "",
+                    placeholder: accountSso.client_secret_configured
+                        ? "Leave blank to keep current secret"
+                        : "Enter OAuth client secret",
+                    span: 2,
+                },
+            ],
+            [
+                {
+                    type: "input",
+                    name: "account_sso_ca_bundle",
+                    label: "Account CA bundle",
+                    value: String(accountSso.ca_bundle || ""),
+                    placeholder: "Optional absolute CA bundle path",
+                    span: 2,
+                },
+            ],
+            [
+                {
+                    type: "text",
+                    content: `OAuth secret: ${accountSso.client_secret_configured ? "configured" : "not configured"}. Leave blank to keep the current stored value.`,
+                    span: 2,
+                },
+            ],
+            [
+                {
+                    type: "text",
+                    content: "Account app-admin API",
+                    span: 2,
+                },
+            ],
+            [
+                {
+                    type: "select",
+                    name: "account_admin_enabled",
+                    label: "App-admin API",
+                    value: String(accountAdmin.enabled ? "1" : "0"),
+                    options: [
+                        { label: "Enabled", value: "1" },
+                        { label: "Disabled", value: "0" },
+                    ],
+                },
+                {
+                    type: "input",
+                    name: "account_admin_client",
+                    label: "Account client header",
+                    value: String(accountAdmin.client || "pbb-account"),
+                    placeholder: "pbb-account",
+                },
+            ],
+            [
+                {
+                    type: "input",
+                    name: "account_admin_token",
+                    label: "App-admin token",
+                    input: "password",
+                    value: "",
+                    placeholder: accountAdmin.token_configured
+                        ? "Leave blank to keep current token"
+                        : "Enter dedicated app-admin token",
+                    span: 2,
+                },
+            ],
+            [
+                {
+                    type: "text",
+                    content: `App-admin token: ${accountAdmin.token_configured ? "configured" : "not configured"}. Entering a new token rotates the stored service token.`,
+                    span: 2,
+                },
+            ],
+            [
+                {
+                    type: "text",
+                    content: "Maestro telemetry",
+                    span: 2,
+                },
+            ],
             [
                 {
                     type: "select",
@@ -7557,7 +7723,25 @@ async function openRealtimeSettingsModal() {
             ],
         ],
         async onSubmit(values, ctx) {
-            const payload = {
+            const accountPayload = {
+                sso: {
+                    enabled: String(values.account_sso_enabled || "0") === "1",
+                    base_url: String(values.account_sso_base_url || "").trim(),
+                    client_id: String(values.account_sso_client_id || "").trim(),
+                    client_secret: String(values.account_sso_client_secret || "").trim(),
+                    redirect_uri: String(values.account_sso_redirect_uri || "").trim(),
+                    post_logout_redirect_uri: String(values.account_sso_post_logout_redirect_uri || "").trim(),
+                    scopes: String(values.account_sso_scopes || "").trim(),
+                    timeout_seconds: Number(values.account_sso_timeout_seconds || 0),
+                    ca_bundle: String(values.account_sso_ca_bundle || "").trim(),
+                },
+                app_admin: {
+                    enabled: String(values.account_admin_enabled || "0") === "1",
+                    client: String(values.account_admin_client || "").trim(),
+                    token: String(values.account_admin_token || "").trim(),
+                },
+            };
+            const maestroPayload = {
                 enabled: String(values.enabled || "0") === "1",
                 base_url: String(values.base_url || "").trim(),
                 app_code: String(values.app_code || "").trim(),
@@ -7566,12 +7750,25 @@ async function openRealtimeSettingsModal() {
                 timeout_seconds: Number(values.timeout_seconds || 0),
             };
 
+            const accountResult = await requestJson(API.runtimeSettingsAccount, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(accountPayload),
+            });
+
+            if (!accountResult.response.ok || accountResult.data?.status === false) {
+                ctx.setFormError?.(accountResult.data?.message || "Unable to save Account settings.");
+                return false;
+            }
+
             const { response, data } = await requestJson(API.runtimeSettingsMaestroTelemetry, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify(payload),
+                body: JSON.stringify(maestroPayload),
             });
 
             if (!response.ok || data?.status === false) {

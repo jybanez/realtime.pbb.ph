@@ -92,13 +92,7 @@ class AccountIntegrationTest extends TestCase
 
     public function test_account_sso_callback_provisions_operator_session(): void
     {
-        config([
-            'account.enabled' => true,
-            'account.base_url' => 'https://account.pbb.ph',
-            'account.client_id' => 'pbb-realtime',
-            'account.client_secret' => 'oauth-secret',
-            'account.redirect_uri' => 'https://realtime.pbb.ph/auth/account/callback',
-        ]);
+        $this->enableAccountSso();
 
         Http::fake([
             'https://account.pbb.ph/oauth/token' => Http::response([
@@ -124,6 +118,71 @@ class AccountIntegrationTest extends TestCase
         $this->assertSame('regular', $user->user_type);
         $this->assertTrue($user->is_operator);
         $this->assertSame('active', $user->status);
+    }
+
+    public function test_admin_can_manage_account_settings_without_exposing_secrets(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin);
+
+        $this->patchJson('/api/admin/runtime-settings/account', [
+            'sso' => [
+                'enabled' => true,
+                'base_url' => 'https://account.pbb.ph',
+                'client_id' => 'pbb-realtime',
+                'client_secret' => 'oauth-secret',
+                'redirect_uri' => 'https://realtime.pbb.ph/auth/account/callback',
+                'post_logout_redirect_uri' => 'https://realtime.pbb.ph',
+                'scopes' => 'openid profile',
+                'timeout_seconds' => 10,
+                'ca_bundle' => '',
+            ],
+            'app_admin' => [
+                'enabled' => true,
+                'client' => 'pbb-account',
+                'token' => 'service-token',
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.account.sso.client_secret_configured', true)
+            ->assertJsonMissing(['client_secret' => 'oauth-secret'])
+            ->assertJsonPath('data.account.app_admin.token_configured', true)
+            ->assertJsonMissing(['token' => 'service-token']);
+
+        $this->patchJson('/api/admin/runtime-settings/account', [
+            'sso' => [
+                'enabled' => true,
+                'base_url' => 'https://account.pbb.ph',
+                'client_id' => 'pbb-realtime',
+                'client_secret' => '',
+                'redirect_uri' => 'https://realtime.pbb.ph/auth/account/callback',
+                'post_logout_redirect_uri' => 'https://realtime.pbb.ph',
+                'scopes' => 'openid profile',
+                'timeout_seconds' => 10,
+                'ca_bundle' => '',
+            ],
+            'app_admin' => [
+                'enabled' => true,
+                'client' => 'pbb-account',
+                'token' => '',
+            ],
+        ])->assertOk();
+
+        $this->assertSame('oauth-secret', RealtimeRuntimeSetting::query()
+            ->where('setting_key', 'account_sso_client_secret')
+            ->firstOrFail()
+            ->setting_value);
+        $this->assertSame('service-token', RealtimeRuntimeSetting::query()
+            ->where('setting_key', 'account_admin_api_token')
+            ->firstOrFail()
+            ->setting_value);
+
+        $this->getJson('/api/admin/operations')
+            ->assertOk()
+            ->assertJsonPath('data.runtime_settings.account.sso.client_secret_configured', true)
+            ->assertJsonMissing(['client_secret' => 'oauth-secret'])
+            ->assertJsonPath('data.runtime_settings.account.app_admin.token_configured', true)
+            ->assertJsonMissing(['token' => 'service-token']);
     }
 
     public function test_disabled_user_cannot_login_to_admin_surface(): void
@@ -158,6 +217,27 @@ class AccountIntegrationTest extends TestCase
             ['setting_key' => 'account_admin_api_client'],
             ['setting_value' => 'pbb-account']
         );
+    }
+
+    private function enableAccountSso(): void
+    {
+        $settings = [
+            'account_sso_enabled' => '1',
+            'account_sso_base_url' => 'https://account.pbb.ph',
+            'account_sso_client_id' => 'pbb-realtime',
+            'account_sso_client_secret' => 'oauth-secret',
+            'account_sso_redirect_uri' => 'https://realtime.pbb.ph/auth/account/callback',
+            'account_sso_post_logout_redirect_uri' => 'https://realtime.pbb.ph',
+            'account_sso_scopes' => 'openid profile',
+            'account_sso_timeout_seconds' => '10',
+        ];
+
+        foreach ($settings as $key => $value) {
+            RealtimeRuntimeSetting::query()->updateOrCreate(
+                ['setting_key' => $key],
+                ['setting_value' => $value]
+            );
+        }
     }
 
     /**
