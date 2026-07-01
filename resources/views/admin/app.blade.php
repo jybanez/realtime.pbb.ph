@@ -16,7 +16,8 @@
          data-page="/{{ ltrim(request()->path(), '/') }}"
          data-app-name="PBB Realtime"
          data-asset-version="{{ $assetVersion }}"
-         data-flash-message="{{ session('status') }}">
+         data-flash-message="{{ session('status') }}"
+         data-account-login-error="{{ session('account_login_error') }}">
     </div>
     <script type="module" src="{{ asset('js/app.js') }}?v={{ $assetVersion }}"></script>
 </body>

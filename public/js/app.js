@@ -36,6 +36,7 @@ const appEl = document.getElementById("app");
 const csrfMeta = document.querySelector('meta[name="csrf-token"]');
 const appName = appEl?.dataset.appName || "PBB Realtime";
 const flashMessage = String(appEl?.dataset.flashMessage || "").trim();
+const accountLoginError = String(appEl?.dataset.accountLoginError || "").trim();
 const assetVersion = String(appEl?.dataset.assetVersion || "").trim();
 const projectStyleHref = assetVersion ? `/css/app.css?v=${encodeURIComponent(assetVersion)}` : "/css/app.css";
 const SANDBOX_RINGTONE_SRC = "/audio/ringtone.mp3";
@@ -419,10 +420,18 @@ async function bootstrap() {
             return;
         }
 
+        if (isAccountSsoEnabled() && !accountLoginError) {
+            beginAccountSso();
+            return;
+        }
+
         renderStatusPage();
         renderNavbar();
         if (flashMessage) {
             showToast(flashMessage, { title: "Status", type: "success" });
+        }
+        if (accountLoginError) {
+            showToast(accountLoginError, { title: "Account sign in", type: "error" });
         }
         return;
     }
@@ -435,6 +444,9 @@ async function bootstrap() {
     renderNavbar();
     if (flashMessage) {
         showToast(flashMessage, { title: "Status", type: "success" });
+    }
+    if (accountLoginError) {
+        showToast(accountLoginError, { title: "Account sign in", type: "error" });
     }
     await renderCurrentPage();
     startKeepaliveWatcher();
