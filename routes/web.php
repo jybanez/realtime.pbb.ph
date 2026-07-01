@@ -14,7 +14,6 @@ use App\Http\Controllers\Admin\SandboxController;
 use App\Http\Controllers\Admin\SessionStateController;
 use App\Http\Controllers\Admin\SessionController as AdminSessionController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\AccountAdminController;
 use App\Http\Controllers\AccountSsoController;
 use App\Http\Controllers\ApiDocsController;
 use App\Http\Controllers\PublicSdkDocsController;
@@ -36,17 +35,6 @@ Route::post('/admin/logout', [AdminAuthController::class, 'destroy'])->name('log
 Route::get('/auth/account/redirect', [AccountSsoController::class, 'redirect'])->name('account.redirect');
 Route::get('/auth/account/callback', [AccountSsoController::class, 'callback'])->name('account.callback');
 Route::get('/auth/logout', [AccountSsoController::class, 'logout'])->name('account.logout');
-
-Route::prefix('api/account-admin')
-    ->middleware(['account-admin', 'throttle:120,1'])
-    ->name('account-admin.')
-    ->group(function (): void {
-        Route::get('/meta', [AccountAdminController::class, 'meta'])->name('meta');
-        Route::get('/users/{pbbUserId}', [AccountAdminController::class, 'show'])->name('users.show');
-        Route::put('/users/{pbbUserId}', [AccountAdminController::class, 'provision'])->name('users.provision');
-        Route::patch('/users/{pbbUserId}/role', [AccountAdminController::class, 'updateRole'])->name('users.role');
-        Route::patch('/users/{pbbUserId}/status', [AccountAdminController::class, 'updateStatus'])->name('users.status');
-    });
 
 Route::prefix('api/admin')->name('admin.api.')->group(function () {
     Route::get('/csrf-token', [SessionStateController::class, 'csrfToken'])->name('csrf');

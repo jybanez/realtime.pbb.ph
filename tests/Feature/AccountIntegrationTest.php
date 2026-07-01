@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class AccountIntegrationTest extends TestCase
@@ -88,6 +89,19 @@ class AccountIntegrationTest extends TestCase
             'status' => 'disabled',
         ]);
         $this->assertSame(2, RealtimeAuditEvent::query()->where('target_type', 'admin_user')->count());
+    }
+
+    public function test_account_admin_routes_use_api_stack_without_web_csrf(): void
+    {
+        $route = Route::getRoutes()->getByName('account-admin.users.provision');
+
+        $this->assertNotNull($route);
+        $this->assertSame('api/account-admin/users/{pbbUserId}', $route->uri());
+        $middleware = $route->gatherMiddleware();
+        $this->assertContains('api', $middleware);
+        $this->assertContains('account-admin', $middleware);
+        $this->assertContains('throttle:120,1', $middleware);
+        $this->assertNotContains('web', $middleware);
     }
 
     public function test_account_sso_callback_provisions_operator_session(): void
