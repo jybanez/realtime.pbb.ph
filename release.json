@@ -106,12 +106,16 @@
         "meta": "/api/account-admin/meta",
         "lookup": "/api/account-admin/users/{pbb_user_id}",
         "provision": "/api/account-admin/users/{pbb_user_id}",
+        "remove": "/api/account-admin/users/{pbb_user_id}",
         "role": "/api/account-admin/users/{pbb_user_id}/role",
         "status": "/api/account-admin/users/{pbb_user_id}/status"
       },
       "roles": ["admin", "regular"],
       "statuses": ["active", "disabled"],
-      "notes": "user_type is the Account-managed Realtime role. is_operator is a local admin-surface access capability, not an Account role. App-admin runtime auth reads DB settings only."
+      "capabilities": {
+        "removeUser": true
+      },
+      "notes": "user_type is the Account-managed Realtime role. is_operator is a local admin-surface access capability, not an Account role. Remove Access unlinks pbb_user_id, disables login, and preserves local history. App-admin runtime auth reads DB settings only."
     }
   },
   "installer": {

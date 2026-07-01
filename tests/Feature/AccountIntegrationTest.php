@@ -42,6 +42,7 @@ class AccountIntegrationTest extends TestCase
             ->assertJsonPath('data.roles.0.value', 'admin')
             ->assertJsonPath('data.roles.1.value', 'regular')
             ->assertJsonPath('data.statuses.1.value', 'disabled')
+            ->assertJsonPath('data.capabilities.removeUser', true)
             ->assertJsonPath('data.capabilities.operatorCapability.field', 'is_operator');
     }
 
@@ -89,6 +90,45 @@ class AccountIntegrationTest extends TestCase
             'status' => 'disabled',
         ]);
         $this->assertSame(2, RealtimeAuditEvent::query()->where('target_type', 'admin_user')->count());
+    }
+
+    public function test_account_admin_can_remove_access_idempotently(): void
+    {
+        $this->enableAccountAdmin('secret-token');
+
+        $pbbUserId = '01JREALTIMEACCOUNT00000003';
+        $user = User::factory()->admin()->create([
+            'pbb_user_id' => $pbbUserId,
+            'status' => 'active',
+            'is_operator' => true,
+        ]);
+
+        $this->deleteJson("/api/account-admin/users/{$pbbUserId}", [
+            'reason' => 'Remove app access from Account',
+        ], $this->accountAdminHeaders())
+            ->assertOk()
+            ->assertJsonPath('data.removed', true)
+            ->assertJsonPath('data.alreadyRemoved', false)
+            ->assertJsonPath('data.pbbUserId', $pbbUserId)
+            ->assertJsonPath('data.user.pbbUserId', null)
+            ->assertJsonPath('data.user.status', 'disabled')
+            ->assertJsonPath('data.user.isOperator', false);
+
+        $user->refresh();
+        $this->assertNull($user->pbb_user_id);
+        $this->assertSame('disabled', $user->status);
+        $this->assertFalse((bool) $user->is_operator);
+        $this->assertDatabaseHas('realtime_audit_events', [
+            'action_type' => 'account_admin_access_removed',
+            'target_type' => 'admin_user',
+            'target_code' => $user->email,
+        ]);
+
+        $this->deleteJson("/api/account-admin/users/{$pbbUserId}", [], $this->accountAdminHeaders())
+            ->assertOk()
+            ->assertJsonPath('data.removed', true)
+            ->assertJsonPath('data.alreadyRemoved', true)
+            ->assertJsonPath('data.pbbUserId', $pbbUserId);
     }
 
     public function test_account_admin_routes_use_api_stack_without_web_csrf(): void

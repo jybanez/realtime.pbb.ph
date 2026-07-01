@@ -23,6 +23,7 @@ Route::prefix('account-admin')
         Route::get('/meta', [AccountAdminController::class, 'meta'])->name('meta');
         Route::get('/users/{pbbUserId}', [AccountAdminController::class, 'show'])->name('users.show');
         Route::put('/users/{pbbUserId}', [AccountAdminController::class, 'provision'])->name('users.provision');
+        Route::delete('/users/{pbbUserId}', [AccountAdminController::class, 'removeAccess'])->name('users.remove');
         Route::patch('/users/{pbbUserId}/role', [AccountAdminController::class, 'updateRole'])->name('users.role');
         Route::patch('/users/{pbbUserId}/status', [AccountAdminController::class, 'updateStatus'])->name('users.status');
     });

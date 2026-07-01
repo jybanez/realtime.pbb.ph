@@ -59,8 +59,11 @@ Service-only endpoints:
 - `GET /api/account-admin/meta`
 - `GET /api/account-admin/users/{pbb_user_id}`
 - `PUT /api/account-admin/users/{pbb_user_id}`
+- `DELETE /api/account-admin/users/{pbb_user_id}`
 - `PATCH /api/account-admin/users/{pbb_user_id}/role`
 - `PATCH /api/account-admin/users/{pbb_user_id}/status`
+
+The remove-access endpoint is idempotent. Realtime preserves the local user and audit/history records, unlinks `users.pbb_user_id`, sets `status=disabled`, clears `is_operator`, rotates `remember_token`, and writes an `account_admin_access_removed` audit event. `/api/account-admin/meta` advertises this with `capabilities.removeUser=true`.
 
 Runtime app-admin auth uses encrypted DB-backed settings only. It must not fall back to generic `.env` keys during request handling.
 

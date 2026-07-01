@@ -34,6 +34,7 @@ class AccountAdminController extends Controller
                 'provisionUser' => true,
                 'updateRole' => true,
                 'blockLogin' => true,
+                'removeUser' => true,
                 'suspendLogin' => false,
                 'operatorCapability' => [
                     'field' => 'is_operator',
@@ -158,6 +159,39 @@ class AccountAdminController extends Controller
         $audit->record(null, 'account_admin_status_updated', 'admin_user', (string) $user->email, $before, $this->auditUserState($user), $data['reason'] ?? null);
 
         return $this->ok(['user' => $this->accountUserPayload($user)]);
+    }
+
+    public function removeAccess(Request $request, string $pbbUserId, RealtimeAdminAuditLogger $audit): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $user = $this->findLinkedUser($pbbUserId);
+        if (!$user) {
+            return $this->ok([
+                'removed' => true,
+                'alreadyRemoved' => true,
+                'pbbUserId' => $pbbUserId,
+            ]);
+        }
+
+        $before = $this->auditUserState($user);
+        $user->forceFill([
+            'pbb_user_id' => null,
+            'status' => 'disabled',
+            'is_operator' => false,
+            'remember_token' => Str::random(60),
+        ])->save();
+
+        $audit->record(null, 'account_admin_access_removed', 'admin_user', (string) $user->email, $before, $this->auditUserState($user), $data['reason'] ?? null);
+
+        return $this->ok([
+            'removed' => true,
+            'alreadyRemoved' => false,
+            'pbbUserId' => $pbbUserId,
+            'user' => $this->accountUserPayload($user),
+        ]);
     }
 
     private function findLinkedUser(string $pbbUserId): ?User
