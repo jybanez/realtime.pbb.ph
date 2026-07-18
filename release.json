@@ -180,6 +180,30 @@
     "owner": "kit-setup",
     "requirements": [
       {
+        "id": "pbb-realtime-laravel-bootstrap-env",
+        "kind": "apache_setenv",
+        "scope": "vhost",
+        "keys": [
+          { "name": "APP_NAME", "value_source": "app.name", "required": true, "secret": false },
+          { "name": "APP_ENV", "value_source": "app.env", "required": true, "secret": false },
+          { "name": "APP_DEBUG", "value_source": "app.debug", "required": true, "secret": false },
+          { "name": "APP_URL", "value_source": "app.url", "required": true, "secret": false },
+          { "name": "APP_KEY", "value_source": "generated_config.APP_KEY", "required": true, "secret": true },
+          { "name": "DB_CONNECTION", "value_source": "database.connection", "required": true, "secret": false },
+          { "name": "DB_HOST", "value_source": "database.host", "required": true, "secret": false },
+          { "name": "DB_PORT", "value_source": "database.port", "required": true, "secret": false },
+          { "name": "DB_DATABASE", "value_source": "database.database", "required": true, "secret": false },
+          { "name": "DB_USERNAME", "value_source": "database.username", "required": true, "secret": false },
+          { "name": "DB_PASSWORD", "value_source": "database.password", "required": false, "secret": true },
+          { "name": "SESSION_DRIVER", "value": "file", "required": true, "secret": false },
+          { "name": "SESSION_COOKIE", "value_source": "app.session_cookie", "required": true, "secret": false },
+          { "name": "CACHE_STORE", "value": "file", "required": true, "secret": false },
+          { "name": "QUEUE_CONNECTION", "value": "sync", "required": true, "secret": false },
+          { "name": "FILESYSTEM_DISK", "value_source": "app.filesystem_disk", "required": true, "secret": false },
+          { "name": "PBB_CA_BUNDLE", "value_source": "runtime.pbb_ca_bundle", "required": false, "secret": false }
+        ]
+      },
+      {
         "id": "pbb-realtime-websocket-proxy",
         "type": "websocket_proxy",
         "server_path": "/realtime",

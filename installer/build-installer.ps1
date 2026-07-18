@@ -1,5 +1,6 @@
 param(
-    [string]$ZipPath = ""
+    [string]$ZipPath = "",
+    [switch]$UseExistingVendorFallback
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,7 +12,9 @@ $PhpBin = if (Test-Path "C:\\wamp64\\bin\\php\\php8.2.29\\php.exe") {
 } else {
     (Get-Command php).Source
 }
-$ComposerPhar = if (Test-Path "C:\\ProgramData\\ComposerSetup\\bin\\composer.phar") {
+$ComposerPhar = if (-not [string]::IsNullOrWhiteSpace($env:COMPOSER_PHAR) -and (Test-Path $env:COMPOSER_PHAR)) {
+    $env:COMPOSER_PHAR
+} elseif (Test-Path "C:\\ProgramData\\ComposerSetup\\bin\\composer.phar") {
     "C:\\ProgramData\\ComposerSetup\\bin\\composer.phar"
 } else {
     $null
@@ -23,6 +26,33 @@ if ([string]::IsNullOrWhiteSpace($ZipPath)) {
 
 if (-not (Test-Path $OutputDir)) {
     New-Item -ItemType Directory -Path $OutputDir | Out-Null
+}
+
+function Remove-ComposerDevPackagesFromStage {
+    param(
+        [string]$RepoRoot,
+        [string]$StageRoot
+    )
+
+    $LockPath = Join-Path $RepoRoot "composer.lock"
+    $StageVendor = Join-Path $StageRoot "vendor"
+    if (-not (Test-Path $LockPath) -or -not (Test-Path $StageVendor)) {
+        return
+    }
+
+    $Lock = Get-Content $LockPath -Raw | ConvertFrom-Json
+    foreach ($Package in @($Lock.'packages-dev')) {
+        $Name = [string]$Package.name
+        if ([string]::IsNullOrWhiteSpace($Name) -or -not $Name.Contains("/")) {
+            continue
+        }
+
+        $Parts = $Name.Split("/", 2)
+        $PackagePath = Join-Path $StageVendor (Join-Path $Parts[0] $Parts[1])
+        if (Test-Path $PackagePath) {
+            Remove-Item -LiteralPath $PackagePath -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 if (Test-Path $ZipPath) {
@@ -101,7 +131,22 @@ try {
         $ErrorActionPreference = $PreviousErrorActionPreference
     }
     if ($ComposerExitCode -ne 0) {
-        throw ("Production Composer install failed. " + ($ComposerOutput -join "`n"))
+        $AllowExistingVendorFallback = $UseExistingVendorFallback -or (
+            -not [string]::IsNullOrWhiteSpace($env:REALTIME_INSTALLER_ALLOW_EXISTING_VENDOR_FALLBACK) -and
+            $env:REALTIME_INSTALLER_ALLOW_EXISTING_VENDOR_FALLBACK.ToLowerInvariant() -in @("1", "true", "yes")
+        )
+        if (-not $AllowExistingVendorFallback) {
+            throw ("Production Composer install failed. " + ($ComposerOutput -join "`n"))
+        }
+
+        $LocalVendor = Join-Path $Root "vendor"
+        if (-not (Test-Path $LocalVendor)) {
+            throw ("Production Composer install failed and local vendor fallback is unavailable. " + ($ComposerOutput -join "`n"))
+        }
+
+        Copy-Item -LiteralPath $LocalVendor -Destination (Join-Path $StageRoot "vendor") -Recurse -Force
+        Remove-ComposerDevPackagesFromStage -RepoRoot $Root -StageRoot $StageRoot
+        Write-Warning "Production Composer install failed; used explicit local vendor fallback and removed composer.lock packages-dev directories."
     }
 
     $PackageRoot = $StageRoot

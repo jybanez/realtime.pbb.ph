@@ -1919,38 +1919,64 @@ PHP;
 
         return [
             'owner' => 'kit-setup',
-            'requirements' => [[
-                'id' => 'pbb-realtime-websocket-proxy',
-                'type' => 'websocket_proxy',
-                'server_path' => $serverPath,
-                'path_prefix' => $serverPath,
-                'upstream_url' => $upstreamUrl,
-                'public_url' => (string) ($realtime['public_websocket_url'] ?? ''),
-                'required_modules' => ['proxy', 'proxy_wstunnel'],
-                'headers' => [
-                    'Upgrade' => '$http_upgrade',
-                    'Connection' => 'upgrade',
-                ],
-                'directives' => [
-                    'ProxyWebsocketFallbackToProxyHttp' => 'Off',
-                ],
-                'set_env' => new stdClass(),
-                'smoke_test' => [
-                    'auth_required' => false,
-                    'path' => $serverPath,
-                    'query' => new stdClass(),
-                    'headers' => [
-                        'Host' => self::derivePublicWebsocketHost($config),
-                        'Origin' => rtrim((string) ($config['app']['app_url'] ?? ''), '/'),
+            'requirements' => [
+                [
+                    'id' => 'pbb-realtime-laravel-bootstrap-env',
+                    'kind' => 'apache_setenv',
+                    'scope' => 'vhost',
+                    'keys' => [
+                        ['name' => 'APP_NAME', 'value_source' => 'app.name', 'required' => true, 'secret' => false],
+                        ['name' => 'APP_ENV', 'value_source' => 'app.env', 'required' => true, 'secret' => false],
+                        ['name' => 'APP_DEBUG', 'value_source' => 'app.debug', 'required' => true, 'secret' => false],
+                        ['name' => 'APP_URL', 'value_source' => 'app.url', 'required' => true, 'secret' => false],
+                        ['name' => 'APP_KEY', 'value_source' => 'generated_config.APP_KEY', 'required' => true, 'secret' => true],
+                        ['name' => 'DB_CONNECTION', 'value_source' => 'database.connection', 'required' => true, 'secret' => false],
+                        ['name' => 'DB_HOST', 'value_source' => 'database.host', 'required' => true, 'secret' => false],
+                        ['name' => 'DB_PORT', 'value_source' => 'database.port', 'required' => true, 'secret' => false],
+                        ['name' => 'DB_DATABASE', 'value_source' => 'database.database', 'required' => true, 'secret' => false],
+                        ['name' => 'DB_USERNAME', 'value_source' => 'database.username', 'required' => true, 'secret' => false],
+                        ['name' => 'DB_PASSWORD', 'value_source' => 'database.password', 'required' => false, 'secret' => true],
+                        ['name' => 'SESSION_DRIVER', 'value' => 'file', 'required' => true, 'secret' => false],
+                        ['name' => 'SESSION_COOKIE', 'value_source' => 'app.session_cookie', 'required' => true, 'secret' => false],
+                        ['name' => 'CACHE_STORE', 'value' => 'file', 'required' => true, 'secret' => false],
+                        ['name' => 'QUEUE_CONNECTION', 'value' => 'sync', 'required' => true, 'secret' => false],
+                        ['name' => 'FILESYSTEM_DISK', 'value_source' => 'app.filesystem_disk', 'required' => true, 'secret' => false],
+                        ['name' => 'PBB_CA_BUNDLE', 'value_source' => 'runtime.pbb_ca_bundle', 'required' => false, 'secret' => false],
                     ],
-                    'expect_status' => 101,
-                    'expect_first_message_type' => 'session.awaiting-auth',
                 ],
-                'install_blocking' => false,
-                'smoke_test_phase' => 'post-vhost',
-                'smoke_test_owner' => 'kit-setup',
-                'app_installer_validation' => 'local_service_readiness_only',
-            ]],
+                [
+                    'id' => 'pbb-realtime-websocket-proxy',
+                    'type' => 'websocket_proxy',
+                    'server_path' => $serverPath,
+                    'path_prefix' => $serverPath,
+                    'upstream_url' => $upstreamUrl,
+                    'public_url' => (string) ($realtime['public_websocket_url'] ?? ''),
+                    'required_modules' => ['proxy', 'proxy_wstunnel'],
+                    'headers' => [
+                        'Upgrade' => '$http_upgrade',
+                        'Connection' => 'upgrade',
+                    ],
+                    'directives' => [
+                        'ProxyWebsocketFallbackToProxyHttp' => 'Off',
+                    ],
+                    'set_env' => new stdClass(),
+                    'smoke_test' => [
+                        'auth_required' => false,
+                        'path' => $serverPath,
+                        'query' => new stdClass(),
+                        'headers' => [
+                            'Host' => self::derivePublicWebsocketHost($config),
+                            'Origin' => rtrim((string) ($config['app']['app_url'] ?? ''), '/'),
+                        ],
+                        'expect_status' => 101,
+                        'expect_first_message_type' => 'session.awaiting-auth',
+                    ],
+                    'install_blocking' => false,
+                    'smoke_test_phase' => 'post-vhost',
+                    'smoke_test_owner' => 'kit-setup',
+                    'app_installer_validation' => 'local_service_readiness_only',
+                ],
+            ],
         ];
     }
 

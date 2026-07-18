@@ -102,20 +102,20 @@ HOTLINE_SESSION_COOKIE=pbb_hotline_session
 HOTLINE_SESSION_DOMAIN=
 ```
 
-The matching `config/session.php` should read the prefixed keys first.
+For local CLI and standalone development, the matching `config/session.php` may still read prefixed keys as fallbacks.
 
 ## Apache Vhost Guidance
 
-If a vhost uses `SetEnv` for session settings, prefer app-specific keys there too:
+When Kit Setup owns the Apache vhost, use the standard Laravel `SetEnv` pins inside that app's `<VirtualHost>` block. The generic names are safe in this shape because Kit renders them per vhost, not as shared global process values:
 
 ```apache
-SetEnv REALTIME_SESSION_DRIVER "file"
-SetEnv REALTIME_SESSION_LIFETIME "15"
-SetEnv REALTIME_SESSION_COOKIE "pbb_realtime_session"
-SetEnv REALTIME_SESSION_DOMAIN ""
+SetEnv SESSION_DRIVER "file"
+SetEnv SESSION_LIFETIME "15"
+SetEnv SESSION_COOKIE "pbb_realtime_session"
+SetEnv SESSION_DOMAIN ""
 ```
 
-Avoid setting generic `SESSION_COOKIE` or `SESSION_DOMAIN` in a shared Apache/PHP environment unless every app on that runtime is intentionally meant to share that cookie scope.
+Avoid setting generic `SESSION_COOKIE` or `SESSION_DOMAIN` globally in a shared Apache/PHP environment. They should appear only in the app-specific vhost block. Realtime's runtime config now reads Kit-standard vhost pins first and keeps `REALTIME_SESSION_*` keys as local/CLI fallbacks.
 
 ## After Applying
 

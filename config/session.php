@@ -16,7 +16,7 @@ return [
     |
     */
 
-    'driver' => env('REALTIME_SESSION_DRIVER', env('SESSION_DRIVER', 'file')),
+    'driver' => env('SESSION_DRIVER', env('REALTIME_SESSION_DRIVER', 'file')),
 
     /*
     |--------------------------------------------------------------------------
@@ -29,7 +29,7 @@ return [
     |
     */
 
-    'lifetime' => env('REALTIME_SESSION_LIFETIME', env('SESSION_LIFETIME', 120)),
+    'lifetime' => env('SESSION_LIFETIME', env('REALTIME_SESSION_LIFETIME', 120)),
 
     'expire_on_close' => false,
 
@@ -124,7 +124,7 @@ return [
     |
     */
 
-    'cookie' => env('REALTIME_SESSION_COOKIE', 'pbb_realtime_session'),
+    'cookie' => env('SESSION_COOKIE', env('REALTIME_SESSION_COOKIE', 'pbb_realtime_session')),
 
     /*
     |--------------------------------------------------------------------------
@@ -150,7 +150,7 @@ return [
     |
     */
 
-    'domain' => env('REALTIME_SESSION_DOMAIN'),
+    'domain' => env('SESSION_DOMAIN', env('REALTIME_SESSION_DOMAIN')),
 
     /*
     |--------------------------------------------------------------------------
@@ -163,7 +163,7 @@ return [
     |
     */
 
-    'secure' => env('REALTIME_SESSION_SECURE_COOKIE', env('SESSION_SECURE_COOKIE')),
+    'secure' => env('SESSION_SECURE_COOKIE', env('REALTIME_SESSION_SECURE_COOKIE')),
 
     /*
     |--------------------------------------------------------------------------

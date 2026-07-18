@@ -59,6 +59,8 @@ For Kit Updater handoff, publish canonical app bundles from GitHub Releases rath
 
 Root `release.json` also declares the official GitHub update source under `repository` and `updates`. Kit Setup preserves those fields into install state so production Updater flows can discover future Realtime bundles from the official GitHub Releases page.
 
+Root `release.json` and installer reports declare Kit-managed Laravel vhost bootstrap pins through `web_server.requirements[]` with `kind: apache_setenv`. Realtime publishes APP/DB/session/cache/queue/filesystem pins for per-vhost isolation under shared WAMP Apache/PHP, while Account OAuth/app-admin secrets and other mutable integration settings remain in app-local encrypted DB settings and are not emitted as Apache `SetEnv`.
+
 Optional initial data can be populated after install with:
 
 ```powershell
