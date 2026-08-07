@@ -121,7 +121,7 @@ Expected Kit config:
           "app_code": "realtime",
           "telemetry_token": "<plain run-scoped token>",
           "tls_verify": true,
-          "ca_bundle": "C:/path/to/cacert.pem",
+          "ca_bundle": "C:/wamp64/certs/pbb.ph/pbb.ph.fullchain.crt",
           "connect_timeout_seconds": 3,
           "timeout_seconds": 5
         },
@@ -136,7 +136,7 @@ Expected Kit config:
           "auth_header": "X-Realtime-Media-Ingest-Secret",
           "auth_token": "<plain run-scoped media ingest secret>",
           "tls_verify": true,
-          "ca_bundle": "C:/path/to/cacert.pem"
+          "ca_bundle": "C:/wamp64/certs/pbb.ph/pbb.ph.fullchain.crt"
         }
       }
     }
@@ -151,8 +151,9 @@ CA bundle aliases for Maestro telemetry and media ingest:
 - `ca_bundle`
 - `curl_ca_bundle`
 - `ssl_cert_file`
+- `runtime.pbb_ca_bundle` / process `PBB_CA_BUNDLE` as the Kit-managed shared fallback
 
-Reports are secret-safe. They expose `token_supplied`, `auth_token_supplied`, `secret_refs`, `tls_verify`, and `ca_bundle_configured`, but never raw telemetry or media ingest tokens.
+Reports are secret-safe. They expose `token_supplied`, `auth_token_supplied`, `secret_refs`, `tls_verify`, `ca_bundle_configured`, `ca_bundle_readable`, and `ca_bundle_source`, but never raw telemetry or media ingest tokens.
 
 ## Verify
 
@@ -202,7 +203,7 @@ Realtime telemetry uses Guzzle/Laravel HTTP to reach Maestro. On Windows hosts, 
       "apply_settings": {
         "maestro": {
           "tls_verify": true,
-          "ca_bundle": "C:/wamp64/www/pbb/kit-setup/assets/certs/cacert.pem"
+          "ca_bundle": "C:/wamp64/certs/pbb.ph/pbb.ph.fullchain.crt"
         }
       }
     }
@@ -229,7 +230,7 @@ Realtime media chunk forwarding also uses Laravel HTTP/Guzzle. For Hotline inges
           "auth_header": "X-Realtime-Media-Ingest-Secret",
           "auth_token": "<plain run-scoped media ingest secret>",
           "tls_verify": true,
-          "ca_bundle": "C:/wamp64/www/pbb/kit-setup/assets/certs/cacert.pem"
+          "ca_bundle": "C:/wamp64/certs/pbb.ph/pbb.ph.fullchain.crt"
         }
       }
     }
@@ -254,9 +255,9 @@ must have a trusted CA bundle path in `media_ingest_settings.ca_bundle` unless t
 For Kit-managed installs and Data Prep, the default behavior should be:
 
 1. identify every media-ingest-enabled project scope for the client, not only the original Hotline project codes
-2. preserve any project-specific `ca_bundle` already present
-3. otherwise apply Kit's trusted CA bundle, typically `C:/wamp64/www/pbb/kit-setup/assets/certs/cacert.pem`
-4. verify/report `ca_bundle_configured=true` for each matched HTTPS media ingest project
+2. apply Kit's trusted CA bundle from `runtime.pbb_ca_bundle` / `PBB_CA_BUNDLE` when the media-ingest config does not provide a project-specific `ca_bundle`
+3. persist the resolved CA path into every selected HTTPS media-ingest project, typically the Setup-managed chain file such as `C:/wamp64/certs/pbb.ph/pbb.ph.fullchain.crt` on local Windows installs
+4. verify/report `ca_bundle_configured=true` and `ca_bundle_readable=true` for each matched HTTPS media ingest project
 5. restart `pbb-realtime-websocket` and `pbb-realtime-media-dispatcher` after Data Prep Apply Settings
 
 For manual/admin-created projects, operators must fill the `CA bundle` field when enabling HTTPS media ingest with TLS verification. Leaving it blank can recreate cURL error 60 failures on Windows hosts even when Realtime authentication, project codes, and policy codes are correct.

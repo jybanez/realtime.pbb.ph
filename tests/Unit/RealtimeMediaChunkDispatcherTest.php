@@ -225,14 +225,14 @@ class RealtimeMediaChunkDispatcherTest extends TestCase
         $method = new \ReflectionMethod($forwarder, 'verifyOption');
         $method->setAccessible(true);
 
-        $this->assertSame('C:/wamp64/www/pbb/kit-setup/assets/certs/cacert.pem', $method->invoke($forwarder, [
+        $this->assertSame('C:/wamp64/certs/pbb.ph/pbb.ph.fullchain.crt', $method->invoke($forwarder, [
             'verify_tls' => true,
-            'ca_bundle' => 'C:/wamp64/www/pbb/kit-setup/assets/certs/cacert.pem',
+            'ca_bundle' => 'C:/wamp64/certs/pbb.ph/pbb.ph.fullchain.crt',
         ]));
         $this->assertTrue($method->invoke($forwarder, ['verify_tls' => true]));
         $this->assertFalse($method->invoke($forwarder, [
             'verify_tls' => false,
-            'ca_bundle' => 'C:/wamp64/www/pbb/kit-setup/assets/certs/cacert.pem',
+            'ca_bundle' => 'C:/wamp64/certs/pbb.ph/pbb.ph.fullchain.crt',
         ]));
     }
 

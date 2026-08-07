@@ -85,7 +85,8 @@ For media ingest projects, the CA rule is per project scope. Any project with HT
 If media chunks fail with `media.ingest-failed` and Realtime logs show cURL error 60, verify:
 
 - the affected project scope has `media_ingest_settings.ca_bundle`
-- the CA file exists on the installed host
+- the CA file exists and is readable on the installed host
+- Kit supplied the shared CA through `runtime.pbb_ca_bundle` / `PBB_CA_BUNDLE` or an explicit media-ingest `ca_bundle`
 - Kit Data Prep Apply Settings was rerun after the project was created
 - both `pbb-realtime-websocket` and `pbb-realtime-media-dispatcher` were restarted after settings changed
 
@@ -96,7 +97,7 @@ If media chunks fail with downstream status `401` and Hotline reports `Invalid m
 - Data Prep Apply Settings included `realtime.data_prep.apply_settings.media_ingest.auth_token`
 - the affected project scope is one of the project codes targeted by Data Prep
 
-For future project onboarding, treat media ingest TLS trust as part of the integration contract. A project is ready for install testing only when its Data Prep source or Kit config declares the client/project/policy codes, media ingest endpoint, auth header/secret, TLS verification mode, and CA bundle behavior. The minimum acceptance check is: Data Prep Verify reports the project present, `verify_tls=true`, `ca_bundle_configured=true` for HTTPS media ingest, and an actual media chunk reaches the downstream ingest service.
+For future project onboarding, treat media ingest TLS trust as part of the integration contract. A project is ready for install testing only when its Data Prep source or Kit config declares the client/project/policy codes, media ingest endpoint, auth header/secret, TLS verification mode, and CA bundle behavior. The minimum acceptance check is: Data Prep Verify reports the project present, `verify_tls=true`, `ca_bundle_configured=true`, `ca_bundle_readable=true` for HTTPS media ingest, and an actual media chunk reaches the downstream ingest service.
 
 ## Maestro Heartbeat Missing After Data Prep
 
@@ -115,7 +116,7 @@ If Laravel logs show `cURL error 60: SSL certificate problem`, Kit must pass a t
       "apply_settings": {
         "maestro": {
           "tls_verify": true,
-          "ca_bundle": "C:/path/to/cacert.pem"
+          "ca_bundle": "C:/wamp64/certs/pbb.ph/pbb.ph.fullchain.crt"
         }
       }
     }

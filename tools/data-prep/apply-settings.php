@@ -130,6 +130,33 @@ function bool_value(mixed $value): ?bool
     return filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
 }
 
+function shared_ca_bundle_value(array $config): ?string
+{
+    $runtime = $config['runtime'] ?? [];
+    if (! is_array($runtime)) {
+        $runtime = [];
+    }
+
+    return string_value($runtime['pbb_ca_bundle'] ?? null)
+        ?? string_value($runtime['PBB_CA_BUNDLE'] ?? null)
+        ?? string_value(getenv('PBB_CA_BUNDLE') ?: null);
+}
+
+function ca_bundle_source(array $settings, array $config): ?string
+{
+    if (string_value($settings['ca_bundle'] ?? null) !== null) {
+        return 'ca_bundle';
+    }
+    if (string_value($settings['curl_ca_bundle'] ?? null) !== null) {
+        return 'curl_ca_bundle';
+    }
+    if (string_value($settings['ssl_cert_file'] ?? null) !== null) {
+        return 'ssl_cert_file';
+    }
+
+    return shared_ca_bundle_value($config) !== null ? 'runtime.pbb_ca_bundle' : null;
+}
+
 function int_value(mixed $value): ?int
 {
     if ($value === null || $value === '') {
@@ -143,7 +170,9 @@ function int_value(mixed $value): ?int
 
 function maestro_config(array $config): array
 {
-    $apply = $config['realtime']['data_prep']['apply_settings']['maestro'] ?? [];
+    $rawApply = $config['realtime']['data_prep']['apply_settings']['maestro'] ?? null;
+    $hasApplyConfig = is_array($rawApply);
+    $apply = $rawApply ?? [];
     if (! is_array($apply)) {
         $apply = [];
     }
@@ -159,6 +188,7 @@ function maestro_config(array $config): array
         ?? string_value($secrets['realtime_maestro_telemetry_token'] ?? null);
 
     return [
+        'configured' => $hasApplyConfig,
         'enabled' => bool_value($apply['enabled'] ?? null) ?? ($token !== null),
         'base_url' => string_value($apply['base_url'] ?? null),
         'app_code' => string_value($apply['app_code'] ?? null) ?? 'realtime',
@@ -168,13 +198,19 @@ function maestro_config(array $config): array
         'tls_verify' => bool_value($apply['tls_verify'] ?? ($apply['verify_tls'] ?? null)) ?? true,
         'ca_bundle' => string_value($apply['ca_bundle'] ?? null)
             ?? string_value($apply['curl_ca_bundle'] ?? null)
-            ?? string_value($apply['ssl_cert_file'] ?? null),
+            ?? string_value($apply['ssl_cert_file'] ?? null)
+            ?? ($hasApplyConfig ? shared_ca_bundle_value($config) : null),
+        'ca_bundle_source' => $hasApplyConfig ? ca_bundle_source($apply, $config) : null,
     ];
 }
 
 function validate_maestro_config(array $maestro): array
 {
     $errors = [];
+
+    if (($maestro['configured'] ?? false) !== true) {
+        return [];
+    }
 
     if (($maestro['enabled'] ?? false) === true) {
         if (string_value($maestro['base_url'] ?? null) === null) {
@@ -196,8 +232,8 @@ function validate_maestro_config(array $maestro): array
     }
 
     $caBundle = string_value($maestro['ca_bundle'] ?? null);
-    if (($maestro['tls_verify'] ?? true) === true && $caBundle !== null && ! is_file($caBundle)) {
-        $errors[] = 'realtime.data_prep.apply_settings.maestro.ca_bundle must point to an existing file when supplied.';
+    if (($maestro['tls_verify'] ?? true) === true && $caBundle !== null && (! is_file($caBundle) || ! is_readable($caBundle))) {
+        $errors[] = 'realtime.data_prep.apply_settings.maestro.ca_bundle or runtime.pbb_ca_bundle must point to a readable file when supplied.';
     }
 
     return $errors;
@@ -240,7 +276,9 @@ function media_ingest_config(array $config): ?array
         'tls_verify' => bool_value($apply['tls_verify'] ?? ($apply['verify_tls'] ?? null)),
         'ca_bundle' => string_value($apply['ca_bundle'] ?? null)
             ?? string_value($apply['curl_ca_bundle'] ?? null)
-            ?? string_value($apply['ssl_cert_file'] ?? null),
+            ?? string_value($apply['ssl_cert_file'] ?? null)
+            ?? shared_ca_bundle_value($config),
+        'ca_bundle_source' => ca_bundle_source($apply, $config),
     ];
 }
 
@@ -252,8 +290,8 @@ function validate_media_ingest_config(?array $mediaIngest): array
 
     $errors = [];
     $caBundle = string_value($mediaIngest['ca_bundle'] ?? null);
-    if (($mediaIngest['tls_verify'] ?? true) !== false && $caBundle !== null && ! is_file($caBundle)) {
-        $errors[] = 'realtime.data_prep.apply_settings.media_ingest.ca_bundle must point to an existing file when supplied.';
+    if (($mediaIngest['tls_verify'] ?? true) !== false && $caBundle !== null && (! is_file($caBundle) || ! is_readable($caBundle))) {
+        $errors[] = 'realtime.data_prep.apply_settings.media_ingest.ca_bundle or runtime.pbb_ca_bundle must point to a readable file when supplied.';
     }
 
     return $errors;
@@ -345,60 +383,66 @@ try {
         exit(2);
     }
 
-    $settingsPayload = [
-        'enabled' => (bool) $maestro['enabled'],
-        'base_url' => string_value($maestro['base_url'] ?? null),
-        'app_code' => string_value($maestro['app_code'] ?? null) ?? 'realtime',
-        'connect_timeout_seconds' => (int) $maestro['connect_timeout_seconds'],
-        'timeout_seconds' => (int) $maestro['timeout_seconds'],
-        'verify_tls' => (bool) $maestro['tls_verify'],
-        'ca_bundle' => string_value($maestro['ca_bundle'] ?? null),
-    ];
-
-    if (string_value($maestro['token'] ?? null) !== null) {
-        $settingsPayload['token'] = string_value($maestro['token']);
-    }
-
-    if (! $dryRun) {
-        require dirname(__DIR__, 2) . '/vendor/autoload.php';
-        $app = require dirname(__DIR__, 2) . '/bootstrap/app.php';
-        $kernel = $app->make(Kernel::class);
-        $kernel->bootstrap();
-
-        $app->make(RealtimeRuntimeSettings::class)->updateMaestroTelemetry($settingsPayload);
-    }
-
-    $report['results'][] = [
-        'id' => 'maestro_telemetry_settings',
-        'type' => 'runtime_settings',
-        'action' => $dryRun ? 'plan_update' : 'update',
-        'status' => 'success',
-        'updated' => $dryRun ? 0 : 1,
-        'planned_updated' => $dryRun ? 1 : 0,
-        'failed' => 0,
-        'settings' => [
+    if (($maestro['configured'] ?? false) === true) {
+        $settingsPayload = [
             'enabled' => (bool) $maestro['enabled'],
             'base_url' => string_value($maestro['base_url'] ?? null),
             'app_code' => string_value($maestro['app_code'] ?? null) ?? 'realtime',
             'connect_timeout_seconds' => (int) $maestro['connect_timeout_seconds'],
             'timeout_seconds' => (int) $maestro['timeout_seconds'],
-            'tls_verify' => (bool) $maestro['tls_verify'],
-            'ca_bundle_configured' => string_value($maestro['ca_bundle'] ?? null) !== null,
-            'token_supplied' => string_value($maestro['token'] ?? null) !== null,
-        ],
-    ];
+            'verify_tls' => (bool) $maestro['tls_verify'],
+            'ca_bundle' => string_value($maestro['ca_bundle'] ?? null),
+        ];
 
-    $report['outputs'][] = [
-        'id' => 'realtime_maestro_telemetry',
-        'kind' => 'runtime_settings',
-        'target_app' => 'pbb-realtime',
-        'status' => $dryRun ? 'planned' : 'applied',
-        'secret_refs' => ['runtime.realtime.maestro_telemetry_token'],
-        'token_supplied' => string_value($maestro['token'] ?? null) !== null,
-    ];
+        if (string_value($maestro['token'] ?? null) !== null) {
+            $settingsPayload['token'] = string_value($maestro['token']);
+        }
+
+        if (! $dryRun) {
+            require dirname(__DIR__, 2) . '/vendor/autoload.php';
+            $app = require dirname(__DIR__, 2) . '/bootstrap/app.php';
+            $kernel = $app->make(Kernel::class);
+            $kernel->bootstrap();
+
+            $app->make(RealtimeRuntimeSettings::class)->updateMaestroTelemetry($settingsPayload);
+        }
+
+        $report['results'][] = [
+            'id' => 'maestro_telemetry_settings',
+            'type' => 'runtime_settings',
+            'action' => $dryRun ? 'plan_update' : 'update',
+            'status' => 'success',
+            'updated' => $dryRun ? 0 : 1,
+            'planned_updated' => $dryRun ? 1 : 0,
+            'failed' => 0,
+            'settings' => [
+                'enabled' => (bool) $maestro['enabled'],
+                'base_url' => string_value($maestro['base_url'] ?? null),
+                'app_code' => string_value($maestro['app_code'] ?? null) ?? 'realtime',
+                'connect_timeout_seconds' => (int) $maestro['connect_timeout_seconds'],
+                'timeout_seconds' => (int) $maestro['timeout_seconds'],
+                'tls_verify' => (bool) $maestro['tls_verify'],
+                'ca_bundle_configured' => string_value($maestro['ca_bundle'] ?? null) !== null,
+                'ca_bundle_readable' => string_value($maestro['ca_bundle'] ?? null) !== null
+                    ? is_readable((string) $maestro['ca_bundle'])
+                    : null,
+                'ca_bundle_source' => string_value($maestro['ca_bundle_source'] ?? null),
+                'token_supplied' => string_value($maestro['token'] ?? null) !== null,
+            ],
+        ];
+
+        $report['outputs'][] = [
+            'id' => 'realtime_maestro_telemetry',
+            'kind' => 'runtime_settings',
+            'target_app' => 'pbb-realtime',
+            'status' => $dryRun ? 'planned' : 'applied',
+            'secret_refs' => ['runtime.realtime.maestro_telemetry_token'],
+            'token_supplied' => string_value($maestro['token'] ?? null) !== null,
+        ];
+    }
 
     if ($mediaIngest !== null && ($mediaIngest['enabled'] ?? false) === true) {
-        if ($dryRun) {
+        if (! isset($app)) {
             require dirname(__DIR__, 2) . '/vendor/autoload.php';
             $app = require dirname(__DIR__, 2) . '/bootstrap/app.php';
             $kernel = $app->make(Kernel::class);
@@ -423,6 +467,10 @@ try {
                 'auth_token_supplied' => string_value($mediaIngest['auth_token'] ?? null) !== null,
                 'tls_verify' => $mediaIngest['tls_verify'] ?? true,
                 'ca_bundle_configured' => string_value($mediaIngest['ca_bundle'] ?? null) !== null,
+                'ca_bundle_readable' => string_value($mediaIngest['ca_bundle'] ?? null) !== null
+                    ? is_readable((string) $mediaIngest['ca_bundle'])
+                    : null,
+                'ca_bundle_source' => string_value($mediaIngest['ca_bundle_source'] ?? null),
             ],
         ];
     }

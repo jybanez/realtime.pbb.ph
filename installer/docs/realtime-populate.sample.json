@@ -29,7 +29,7 @@
           ],
           "base_url": "https://hotline.pbb.ph",
           "tls_verify": true,
-          "ca_bundle": "C:/wamp64/www/pbb/kit-setup/assets/certs/cacert.pem"
+          "ca_bundle": "C:/wamp64/certs/pbb.ph/pbb.ph.fullchain.crt"
         }
       }
     }

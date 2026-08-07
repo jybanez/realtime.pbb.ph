@@ -321,7 +321,7 @@ Suggested fields:
           "app_code": "realtime",
           "telemetry_token": "replace-with-kit-generated-token",
           "tls_verify": true,
-          "ca_bundle": "C:\\pbb\\kit\\certs\\cacert.pem",
+          "ca_bundle": "C:\\wamp64\\certs\\pbb.ph\\pbb.ph.fullchain.crt",
           "connect_timeout_seconds": 3,
           "timeout_seconds": 5
         }

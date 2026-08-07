@@ -174,6 +174,26 @@ function string_value(mixed $value): ?string
     return $value !== '' ? $value : null;
 }
 
+function shared_ca_bundle_value(array $config): ?string
+{
+    $runtime = $config['runtime'] ?? [];
+    if (! is_array($runtime)) {
+        $runtime = [];
+    }
+
+    return string_value($runtime['pbb_ca_bundle'] ?? null)
+        ?? string_value($runtime['PBB_CA_BUNDLE'] ?? null)
+        ?? string_value(getenv('PBB_CA_BUNDLE') ?: null);
+}
+
+function expected_ca_bundle_value(array $settings, array $config): ?string
+{
+    return string_value($settings['ca_bundle'] ?? null)
+        ?? string_value($settings['curl_ca_bundle'] ?? null)
+        ?? string_value($settings['ssl_cert_file'] ?? null)
+        ?? shared_ca_bundle_value($config);
+}
+
 function expected_maestro_settings(array $config): ?array
 {
     $maestro = $config['realtime']['data_prep']['apply_settings']['maestro'] ?? null;
@@ -194,7 +214,8 @@ function expected_maestro_settings(array $config): ?array
         'base_url' => string_value($maestro['base_url'] ?? null),
         'app_code' => string_value($maestro['app_code'] ?? null) ?? 'realtime',
         'token_expected' => string_value($maestro['telemetry_token'] ?? ($maestro['token'] ?? null)) !== null,
-        'ca_bundle_expected' => string_value($maestro['ca_bundle'] ?? ($maestro['curl_ca_bundle'] ?? null)) !== null,
+        'ca_bundle_expected' => expected_ca_bundle_value($maestro, $config) !== null,
+        'ca_bundle' => expected_ca_bundle_value($maestro, $config),
     ];
 }
 
@@ -229,7 +250,8 @@ function expected_media_ingest_settings(array $config): ?array
         'base_url' => string_value($media['base_url'] ?? null),
         'auth_header' => string_value($media['auth_header'] ?? null) ?? 'X-Realtime-Media-Ingest-Secret',
         'auth_token_expected' => string_value($media['auth_token'] ?? ($media['media_ingest_secret'] ?? null)) !== null,
-        'ca_bundle_expected' => string_value($media['ca_bundle'] ?? ($media['curl_ca_bundle'] ?? ($media['ssl_cert_file'] ?? null))) !== null,
+        'ca_bundle_expected' => expected_ca_bundle_value($media, $config) !== null,
+        'ca_bundle' => expected_ca_bundle_value($media, $config),
         'tls_verify' => bool_value($media['tls_verify'] ?? ($media['verify_tls'] ?? null)) ?? true,
     ];
 }
@@ -324,6 +346,9 @@ try {
         if ($expectedMaestro['ca_bundle_expected'] && string_value($actualMaestro['ca_bundle'] ?? null) === null) {
             $missing[] = 'maestro_telemetry_ca_bundle';
         }
+        if ($expectedMaestro['ca_bundle_expected'] && string_value($actualMaestro['ca_bundle'] ?? null) !== null && ! is_readable((string) $actualMaestro['ca_bundle'])) {
+            $missing[] = 'maestro_telemetry_ca_bundle_readable';
+        }
 
         $report['results'][] = [
             'id' => 'maestro_telemetry_settings',
@@ -342,6 +367,9 @@ try {
                 'token_configured' => (bool) ($actualMaestro['token_configured'] ?? false),
                 'verify_tls' => (bool) ($actualMaestro['verify_tls'] ?? true),
                 'ca_bundle_configured' => string_value($actualMaestro['ca_bundle'] ?? null) !== null,
+                'ca_bundle_readable' => string_value($actualMaestro['ca_bundle'] ?? null) !== null
+                    ? is_readable((string) $actualMaestro['ca_bundle'])
+                    : null,
             ],
         ];
     }
@@ -378,6 +406,9 @@ try {
             if ($expectedMediaIngest['ca_bundle_expected'] && string_value($settings['ca_bundle'] ?? null) === null) {
                 $missing[] = $project->project_code . '.media_ingest_ca_bundle';
             }
+            if ($expectedMediaIngest['ca_bundle_expected'] && string_value($settings['ca_bundle'] ?? null) !== null && ! is_readable((string) $settings['ca_bundle'])) {
+                $missing[] = $project->project_code . '.media_ingest_ca_bundle_readable';
+            }
         }
 
         if ($projects->count() === 0) {
@@ -400,6 +431,7 @@ try {
                 'auth_token_expected' => (bool) $expectedMediaIngest['auth_token_expected'],
                 'verify_tls' => (bool) $expectedMediaIngest['tls_verify'],
                 'ca_bundle_expected' => (bool) $expectedMediaIngest['ca_bundle_expected'],
+                'ca_bundle_readable_required' => (bool) $expectedMediaIngest['ca_bundle_expected'],
             ],
         ];
     }
