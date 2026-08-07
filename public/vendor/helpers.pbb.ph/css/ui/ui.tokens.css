@@ -15,6 +15,7 @@
   --ui-border: #2b3750;
   --ui-border-strong: #344769;
   --ui-muted: #9fb2d8;
+  --ui-accent: #6f9cff;
   --ui-scrollbar-size: 10px;
   --ui-scrollbar-track: rgba(20, 34, 58, 0.9);
   --ui-scrollbar-thumb: rgba(110, 152, 219, 0.55);
@@ -28,9 +29,36 @@
   --ui-border: #2b3750;
   --ui-border-strong: #344769;
   --ui-muted: #9fb2d8;
+  --ui-accent: #6f9cff;
   --ui-scrollbar-track: rgba(20, 34, 58, 0.9);
   --ui-scrollbar-thumb: rgba(110, 152, 219, 0.55);
   --ui-scrollbar-thumb-hover: rgba(143, 186, 255, 0.75);
+}
+
+[data-theme="dark-slate"] {
+  --ui-bg: #111827;
+  --ui-bg-soft: #182234;
+  --ui-text: #e0e7f2;
+  --ui-border: #334155;
+  --ui-border-strong: #475569;
+  --ui-muted: #a8b6cc;
+  --ui-accent: #7aa2c7;
+  --ui-scrollbar-track: rgba(24, 34, 52, 0.92);
+  --ui-scrollbar-thumb: rgba(122, 162, 199, 0.55);
+  --ui-scrollbar-thumb-hover: rgba(160, 190, 220, 0.75);
+}
+
+[data-theme="night-command"] {
+  --ui-bg: #06111f;
+  --ui-bg-soft: #0a1b2f;
+  --ui-text: #d8f3ff;
+  --ui-border: #1c3a56;
+  --ui-border-strong: #2d658f;
+  --ui-muted: #94bfd6;
+  --ui-accent: #32d3ff;
+  --ui-scrollbar-track: rgba(6, 17, 31, 0.95);
+  --ui-scrollbar-thumb: rgba(50, 211, 255, 0.48);
+  --ui-scrollbar-thumb-hover: rgba(245, 177, 75, 0.78);
 }
 
 [data-theme="light"] {
@@ -40,9 +68,49 @@
   --ui-border: #d7dfef;
   --ui-border-strong: #b8c5e0;
   --ui-muted: #5c6f92;
+  --ui-accent: #3f73d8;
   --ui-scrollbar-track: rgba(227, 236, 250, 0.95);
   --ui-scrollbar-thumb: rgba(109, 137, 188, 0.55);
   --ui-scrollbar-thumb-hover: rgba(88, 118, 174, 0.75);
+}
+
+[data-theme="civic-light"] {
+  --ui-bg: #f6f9fd;
+  --ui-bg-soft: #ffffff;
+  --ui-text: #17233a;
+  --ui-border: #d5dfec;
+  --ui-border-strong: #aebed4;
+  --ui-muted: #576b86;
+  --ui-accent: #256fd1;
+  --ui-scrollbar-track: rgba(226, 235, 247, 0.96);
+  --ui-scrollbar-thumb: rgba(87, 120, 178, 0.55);
+  --ui-scrollbar-thumb-hover: rgba(37, 111, 209, 0.72);
+}
+
+[data-theme="care-light"] {
+  --ui-bg: #f5fbfa;
+  --ui-bg-soft: #ffffff;
+  --ui-text: #17302d;
+  --ui-border: #cfe4df;
+  --ui-border-strong: #9fc7bf;
+  --ui-muted: #55736e;
+  --ui-accent: #208c7d;
+  --ui-scrollbar-track: rgba(221, 241, 237, 0.96);
+  --ui-scrollbar-thumb: rgba(70, 151, 139, 0.52);
+  --ui-scrollbar-thumb-hover: rgba(32, 140, 125, 0.76);
+}
+
+[data-theme="field-contrast"] {
+  --ui-bg: #090b0f;
+  --ui-bg-soft: #121821;
+  --ui-text: #f4f7fb;
+  --ui-border: #42566e;
+  --ui-border-strong: #6f89a8;
+  --ui-muted: #cad4e0;
+  --ui-accent: #ffd34d;
+  --ui-scrollbar-track: rgba(9, 11, 15, 0.95);
+  --ui-scrollbar-thumb: rgba(255, 211, 77, 0.58);
+  --ui-scrollbar-thumb-hover: rgba(117, 181, 255, 0.82);
 }
 
 * {

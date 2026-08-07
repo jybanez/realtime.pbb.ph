@@ -85,16 +85,75 @@
 }
 
 .ui-badge {
+  --ui-badge-accent: var(--ui-accent, #6f9cff);
+  --ui-badge-bg: color-mix(in srgb, var(--ui-badge-accent) 12%, var(--ui-bg-soft, #101c31));
+  --ui-badge-border: color-mix(in srgb, var(--ui-badge-accent) 38%, var(--ui-border-strong, #344769));
+  --ui-badge-text: var(--ui-text, #d7e0f4);
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-height: 24px;
   padding: 0 10px;
-  border: 1px solid var(--ui-border-strong);
+  border: 1px solid var(--ui-badge-border);
   border-radius: var(--ui-radius-pill);
-  background: rgba(22, 35, 58, 0.55);
-  color: var(--ui-text);
-  font: 500 12px/1 var(--ui-font);
+  background: var(--ui-badge-bg);
+  color: var(--ui-badge-text);
+  font: 650 12px/1 var(--ui-font);
+}
+
+.ui-badge.is-neutral {
+  --ui-badge-accent: var(--ui-muted, #9fb2d8);
+}
+
+.ui-badge.is-success,
+.ui-badge.is-active {
+  --ui-badge-accent: var(--ui-success, #45c47a);
+}
+
+.ui-badge.is-warning,
+.ui-badge.is-pending {
+  --ui-badge-accent: var(--ui-warning, #f4be49);
+}
+
+.ui-badge.is-danger,
+.ui-badge.is-inactive,
+.ui-badge.is-error {
+  --ui-badge-accent: var(--ui-danger, #ff5f67);
+}
+
+.ui-badge .ui-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.ui-avatar-presence-host {
+  position: relative;
+}
+
+.ui-avatar-presence-dot {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: clamp(8px, 28%, 12px);
+  height: clamp(8px, 28%, 12px);
+  border: 2px solid var(--ui-bg-soft, #101c31);
+  border-radius: var(--ui-radius-pill);
+  background: transparent;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.ui-avatar-presence-host.is-presence-online .ui-avatar-presence-dot {
+  background: #42d982;
+}
+
+.ui-avatar-presence-host.is-presence-away .ui-avatar-presence-dot {
+  background: #f4c14f;
+}
+
+.ui-avatar-presence-host.is-presence-busy .ui-avatar-presence-dot {
+  background: #ff6b7d;
 }
 
 .ui-button,
@@ -295,6 +354,112 @@ select.ui-input:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--ui-space-2);
+}
+
+.ui-drawer-header > .ui-title {
+  min-width: 0;
+}
+
+.ui-drawer-header-controls,
+.ui-drawer-header-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.ui-drawer-action {
+  position: relative;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--ui-border-strong);
+  background: var(--ui-bg-soft);
+  color: var(--ui-text);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  font: 600 12px/1 var(--ui-font);
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+
+.ui-drawer-action:hover {
+  border-color: #5373af;
+  background: rgba(82, 113, 171, 0.12);
+}
+
+.ui-drawer-action:disabled,
+.ui-drawer-action[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.ui-drawer-action-primary {
+  border-color: #4567a5;
+  background: #213454;
+  color: #e6efff;
+}
+
+.ui-drawer-action-danger {
+  border-color: #8d3b48;
+  background: #451821;
+  color: #ffdfe5;
+}
+
+.ui-drawer-action-quiet {
+  border-color: rgba(51, 69, 99, 0.65);
+  background: rgba(13, 20, 35, 0.55);
+  color: #b9c9e7;
+}
+
+.ui-drawer-action-ghost {
+  background: transparent;
+}
+
+.ui-drawer-action-icon {
+  pointer-events: none;
+}
+
+.ui-drawer-action-label {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-drawer-action-with-label {
+  width: auto;
+  min-width: 30px;
+  padding: 0 10px;
+  grid-auto-flow: column;
+  gap: 6px;
+  border-radius: var(--ui-radius-pill);
+}
+
+.ui-drawer-action.is-busy .ui-drawer-action-icon,
+.ui-drawer-action.is-busy .ui-drawer-action-label {
+  opacity: 0.28;
+}
+
+.ui-drawer-action.is-busy::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: ui-drawer-action-spin 720ms linear infinite;
+}
+
+@keyframes ui-drawer-action-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .ui-drawer-body {

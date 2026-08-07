@@ -1,13 +1,26 @@
 const UI_TOKENS_CSS = "../../css/ui/ui.tokens.css";
 const UI_COMPONENTS_CSS = "../../css/ui/ui.components.css";
 const INCIDENT_BASE_CSS = "../../css/incident/incident.css";
-const UI_OVERLAY_ROUTING_REV = "0.21.64";
-const UI_AUDIO_REV = "0.21.60";
-const UI_ICONS_REV = "0.21.66";
-const UI_PASSWORD_REV = "0.21.64";
+const UI_OVERLAY_ROUTING_REV = "0.21.117";
+const UI_AUDIO_REV = "0.21.61";
+const UI_ICONS_REV = "0.21.118";
+const UI_FILE_INPUT_REV = "0.21.108";
+const UI_CHAT_REV = "0.21.120";
+const UI_PASSWORD_REV = "0.21.65";
+const UI_DATE_REV = "0.21.3";
+const UI_NAV_REV = "0.21.1";
+const UI_MEDIA_REV = "0.21.3";
+const UI_PDF_REV = "0.21.1";
+const UI_TABS_REV = "0.21.1";
+const UI_SPLITTER_REV = "0.21.1";
 const UI_DEVICE_PRIMER_REV = "0.21.65";
-const UI_BUNDLE_JS = "../../dist/helpers.ui.bundle.min.js";
-const UI_BUNDLE_CSS = "../../dist/helpers.ui.bundle.min.css";
+const UI_GAME_REV = "0.21.112";
+const UI_BUNDLE_REV = "0.21.160";
+const UI_GAME_BUNDLE_REV = "0.21.119";
+const UI_BUNDLE_JS = `../../dist/helpers.ui.bundle.min.js?v=${UI_BUNDLE_REV}`;
+const UI_BUNDLE_CSS = `../../dist/helpers.ui.bundle.min.css?v=${UI_BUNDLE_REV}`;
+const UI_GAME_BUNDLE_JS = `../../dist/helpers.game.bundle.min.js?v=${UI_GAME_BUNDLE_REV}`;
+const UI_GAME_BUNDLE_CSS = `../../dist/helpers.game.bundle.min.css?v=${UI_GAME_BUNDLE_REV}`;
 
 export const DEFAULT_COMPONENT_REGISTRY = {
   "ui.dom": {
@@ -48,9 +61,9 @@ export const DEFAULT_COMPONENT_REGISTRY = {
   },
   "ui.drawer": {
     js: "./ui.drawer.js",
-    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS],
-    deps: [],
-    export: "createBottomDrawer",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.icons.css"],
+    deps: ["ui.icons"],
+    export: "createDrawer",
   },
   "ui.iframe.host": {
     js: "./ui.iframe.host.js?v=0.21.8",
@@ -124,10 +137,16 @@ export const DEFAULT_COMPONENT_REGISTRY = {
     deps: [],
     export: "createToastStack",
   },
+  "ui.busy.overlay": {
+    js: "./ui.busy.overlay.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.busy.overlay.css"],
+    deps: [],
+    export: "createBusyOverlay",
+  },
   "ui.form.modal": {
     js: `./ui.form.modal.js?v=${UI_OVERLAY_ROUTING_REV}`,
-    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.modal.css", "../../css/ui/ui.form.modal.css", "../../css/ui/ui.select.css", "../../css/ui/ui.tree.select.css", "../../css/ui/ui.password.css"],
-    deps: ["ui.action.modal", "ui.password"],
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.modal.css", "../../css/ui/ui.form.modal.css", "../../css/ui/ui.number.stepper.css", "../../css/ui/ui.select.css", "../../css/ui/ui.tree.select.css", "../../css/ui/ui.password.css"],
+    deps: ["ui.action.modal", "ui.number.stepper", "ui.password"],
     export: "createFormModal",
   },
   "ui.password": {
@@ -135,6 +154,54 @@ export const DEFAULT_COMPONENT_REGISTRY = {
     css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.password.css"],
     deps: [],
     export: "createPasswordField",
+  },
+  "ui.path.picker": {
+    js: "./ui.path.picker.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.path.picker.css"],
+    deps: [],
+    export: "createPathPicker",
+  },
+  "ui.file.input": {
+    js: `./ui.file.input.js?v=${UI_FILE_INPUT_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.icons.css", `../../css/ui/ui.file.input.css?v=${UI_FILE_INPUT_REV}`],
+    deps: ["ui.icons"],
+    export: "createFileInput",
+  },
+  "ui.number.stepper": {
+    js: "./ui.number.stepper.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.number.stepper.css"],
+    deps: [],
+    export: "createNumberStepper",
+  },
+  "ui.combobox": {
+    js: "./ui.combobox.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.combobox.css"],
+    deps: [],
+    export: "createCombobox",
+  },
+  "ui.checkbox": {
+    js: "./ui.checkbox.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.checkbox.css"],
+    deps: [],
+    export: "createCheckbox",
+  },
+  "ui.checkbox.group": {
+    js: "./ui.checkbox.group.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.checkbox.css", "../../css/ui/ui.checkbox.group.css"],
+    deps: ["ui.checkbox"],
+    export: "createCheckboxGroup",
+  },
+  "ui.field.group": {
+    js: "./ui.field.group.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.icons.css", "../../css/ui/ui.field.group.css", "../../css/ui/ui.checkbox.css", "../../css/ui/ui.checkbox.group.css", "../../css/ui/ui.number.stepper.css", "../../css/ui/ui.combobox.css"],
+    deps: ["ui.checkbox", "ui.checkbox.group", "ui.combobox", "ui.field.group.presets", "ui.icons", "ui.number.stepper"],
+    export: "createFieldGroup",
+  },
+  "ui.field.group.presets": {
+    js: "./ui.field.group.presets.js",
+    css: [],
+    deps: [],
+    export: "fieldGroupPresets",
   },
   "ui.device.primer": {
     js: `./ui.device.primer.js?v=${UI_DEVICE_PRIMER_REV}`,
@@ -147,6 +214,18 @@ export const DEFAULT_COMPONENT_REGISTRY = {
     css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.modal.css", "../../css/ui/ui.icons.css", `../../css/ui/ui.device.primer.css?v=${UI_DEVICE_PRIMER_REV}`],
     deps: ["ui.device.primer"],
     export: "createDevicePrimerModal",
+  },
+  "ui.device.selector": {
+    js: "./ui.device.selector.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.select.css", "../../css/ui/ui.device.selector.css"],
+    deps: ["ui.select"],
+    export: "createDeviceSelector",
+  },
+  "ui.device.selector.media": {
+    js: "./ui.device.selector.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.select.css", "../../css/ui/ui.device.selector.css"],
+    deps: ["ui.device.selector"],
+    export: "createMediaDeviceAdapter",
   },
   "ui.icons": {
     js: `./ui.icons.js?v=${UI_ICONS_REV}`,
@@ -192,8 +271,8 @@ export const DEFAULT_COMPONENT_REGISTRY = {
   },
   "ui.fieldset": {
     js: `./ui.fieldset.js?v=${UI_PASSWORD_REV}`,
-    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.fieldset.css", "../../css/ui/ui.select.css", "../../css/ui/ui.password.css"],
-    deps: ["ui.select", "ui.password"],
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.fieldset.css", "../../css/ui/ui.select.css", "../../css/ui/ui.password.css", "../../css/ui/ui.field.group.css", "../../css/ui/ui.checkbox.css", "../../css/ui/ui.checkbox.group.css"],
+    deps: ["ui.select", "ui.password", "ui.field.group", "ui.checkbox", "ui.checkbox.group"],
     export: "createFieldset",
   },
   "ui.property.editor": {
@@ -201,6 +280,12 @@ export const DEFAULT_COMPONENT_REGISTRY = {
     css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.property.editor.css", "../../css/ui/ui.toggle.css", "../../css/ui/ui.select.css", "../../css/ui/ui.password.css"],
     deps: ["ui.toggle.button", "ui.select", "ui.password"],
     export: "createPropertyEditor",
+  },
+  "ui.property.viewer": {
+    js: "./ui.property.viewer.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.property.viewer.css"],
+    deps: [],
+    export: "createPropertyViewer",
   },
   "ui.select": {
     js: "./ui.select.js",
@@ -226,17 +311,137 @@ export const DEFAULT_COMPONENT_REGISTRY = {
     deps: ["ui.toggle.button"],
     export: "createToggleGroup",
   },
-  "ui.datepicker": {
-    js: "./ui.datepicker.js",
-    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.datepicker.css"],
+  "ui.calendar": {
+    js: `./ui.calendar.js?v=${UI_DATE_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, `../../css/ui/ui.calendar.css?v=${UI_DATE_REV}`],
     deps: [],
+    export: "createCalendar",
+  },
+  "ui.datepicker": {
+    js: `./ui.datepicker.js?v=${UI_DATE_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, `../../css/ui/ui.calendar.css?v=${UI_DATE_REV}`, `../../css/ui/ui.datepicker.css?v=${UI_DATE_REV}`],
+    deps: ["ui.calendar"],
     export: "createDatepicker",
+  },
+  "ui.elapsed.time": {
+    js: "./ui.elapsed.time.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.elapsed.time.css"],
+    deps: [],
+    export: "createElapsedTime",
+  },
+  "ui.clock": {
+    js: "./ui.clock.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.clock.css"],
+    deps: [],
+    export: "createClock",
+  },
+  "ui.signal.strength": {
+    js: "./ui.signal.strength.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.signal.strength.css"],
+    deps: [],
+    export: "createSignalStrength",
+  },
+  "ui.heartbeat.strip": {
+    js: "./ui.heartbeat.strip.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.heartbeat.strip.css"],
+    deps: [],
+    export: "createHeartbeatStrip",
+  },
+  "ui.stat.cards": {
+    js: "./ui.stat.cards.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.icons.css", "../../css/ui/ui.stat.cards.css"],
+    deps: ["ui.icons"],
+    export: "createStatCards",
+  },
+  "ui.icon.grid": {
+    js: "./ui.icon.grid.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.icons.css", "../../css/ui/ui.icon.grid.css"],
+    deps: ["ui.icons"],
+    export: "createIconGrid",
+  },
+  "ui.game.core": {
+    js: `./ui.game.core.js?v=${UI_GAME_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.icons.css", `../../css/ui/ui.game.core.css?v=${UI_GAME_REV}`],
+    deps: ["ui.icons"],
+    export: null,
+  },
+  "ui.game.objects": {
+    js: `./ui.game.objects.js?v=${UI_GAME_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS],
+    deps: [],
+    export: null,
+  },
+  "ui.game.grid": {
+    js: `./ui.game.grid.js?v=${UI_GAME_REV}`,
+    css: [],
+    deps: [],
+    export: null,
+  },
+  "ui.game.audio": {
+    js: `./ui.game.audio.js?v=${UI_GAME_REV}`,
+    css: [],
+    deps: [],
+    export: null,
+  },
+  "ui.game.effects": {
+    js: `./ui.game.effects.js?v=${UI_GAME_REV}`,
+    css: [],
+    deps: [],
+    export: null,
+  },
+  "ui.game.state.chrome": {
+    js: `./ui.game.state.chrome.js?v=${UI_GAME_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.icons.css", `../../css/ui/ui.game.state.chrome.css?v=${UI_GAME_REV}`],
+    deps: ["ui.icons", "ui.game.core"],
+    export: null,
+  },
+  "ui.map.controls": {
+    js: "./ui.map.controls.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.map.controls.css"],
+    deps: [],
+    export: "createMapControls",
+  },
+  "ui.map.legend": {
+    js: "./ui.map.legend.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.icons.css", "../../css/ui/ui.map.legend.css"],
+    deps: ["ui.icons"],
+    export: "createMapLegend",
+  },
+  "ui.map.markers": {
+    js: "./ui.map.markers.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.icons.css", "../../css/ui/ui.map.markers.css"],
+    deps: ["ui.icons"],
+    export: null,
+  },
+  "ui.map.drawing": {
+    js: "./ui.map.drawing.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.map.drawing.css"],
+    deps: [],
+    export: "createMapDrawingTools",
+  },
+  "ui.charts": {
+    js: "./ui.charts.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.charts.css"],
+    deps: [],
+    export: null,
+  },
+  "ui.chart.xy": {
+    js: "./ui.chart.xy.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.chart.xy.css"],
+    deps: [],
+    export: "createXyChart",
   },
   "ui.timeline": {
     js: "./ui.timeline.js",
     css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.timeline.css"],
     deps: [],
     export: "createTimeline",
+  },
+  "ui.activity.chart": {
+    js: "./ui.activity.chart.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.activity.chart.css"],
+    deps: [],
+    export: "createActivityChart",
   },
   "ui.timeline.scrubber": {
     js: "./ui.timeline.scrubber.js",
@@ -270,9 +475,15 @@ export const DEFAULT_COMPONENT_REGISTRY = {
   },
   "ui.splitter": {
     js: "./ui.splitter.js",
-    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.splitter.css"],
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, `../../css/ui/ui.splitter.css?v=${UI_SPLITTER_REV}`],
     deps: [],
     export: "createSplitter",
+  },
+  "ui.navigation.stack": {
+    js: "./ui.navigation.stack.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.navigation.stack.css"],
+    deps: [],
+    export: "createNavigationStack",
   },
   "ui.data.inspector": {
     js: "./ui.data.inspector.js",
@@ -305,8 +516,8 @@ export const DEFAULT_COMPONENT_REGISTRY = {
     export: "createFileUploader",
   },
   "ui.chat.thread": {
-    js: "./ui.chat.thread.js",
-    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.nav.css", "../../css/ui/ui.chat.thread.css", "../../css/ui/ui.media.strip.css", "../../css/ui/ui.media.viewer.css"],
+    js: `./ui.chat.thread.js?v=${UI_CHAT_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.nav.css", `../../css/ui/ui.chat.thread.css?v=${UI_CHAT_REV}`, `../../css/ui/ui.media.strip.css?v=${UI_MEDIA_REV}`, `../../css/ui/ui.media.viewer.css?v=${UI_MEDIA_REV}`],
     deps: ["ui.media.strip", "ui.menu"],
     export: "createChatThread",
   },
@@ -318,12 +529,12 @@ export const DEFAULT_COMPONENT_REGISTRY = {
   },
   "ui.chat.upload.queue": {
     js: "./ui.chat.upload.queue.js",
-    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.chat.upload.queue.css", "../../css/ui/ui.media.strip.css", "../../css/ui/ui.media.viewer.css"],
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.chat.upload.queue.css", `../../css/ui/ui.media.strip.css?v=${UI_MEDIA_REV}`, `../../css/ui/ui.media.viewer.css?v=${UI_MEDIA_REV}`],
     deps: ["ui.media.strip"],
     export: "createChatUploadQueue",
   },
   "ui.tabs": {
-    js: "./ui.tabs.js",
+    js: `./ui.tabs.js?v=${UI_TABS_REV}`,
     css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.tabs.css"],
     deps: [],
     export: "createTabs",
@@ -335,16 +546,22 @@ export const DEFAULT_COMPONENT_REGISTRY = {
     export: "createStrip",
   },
   "ui.media.strip": {
-    js: "./ui.media.strip.js",
-    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.media.strip.css"],
+    js: `./ui.media.strip.js?v=${UI_MEDIA_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, `../../css/ui/ui.media.strip.css?v=${UI_MEDIA_REV}`],
     deps: ["ui.media.viewer"],
     export: "createMediaStrip",
   },
   "ui.media.viewer": {
-    js: "./ui.media.viewer.js",
-    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.media.viewer.css"],
+    js: `./ui.media.viewer.js?v=${UI_MEDIA_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, `../../css/ui/ui.media.viewer.css?v=${UI_MEDIA_REV}`],
     deps: ["ui.audio.audiograph"],
     export: "createMediaViewer",
+  },
+  "ui.pdf.viewer": {
+    js: `./ui.pdf.viewer.js?v=${UI_PDF_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, `../../css/ui/ui.pdf.viewer.css?v=${UI_PDF_REV}`],
+    deps: [],
+    export: "createPdfViewer",
   },
   "ui.grid": {
     js: "./ui.grid.js",
@@ -364,6 +581,12 @@ export const DEFAULT_COMPONENT_REGISTRY = {
     deps: [],
     export: "createHierarchyMap",
   },
+  "ui.tree.mind.map": {
+    js: "./ui.tree.mind.map.js",
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.tree.mind.map.css"],
+    deps: [],
+    export: "createTreeMindMap",
+  },
   "ui.virtual.list": {
     js: "./ui.virtual.list.js",
     css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.virtual.list.css"],
@@ -377,38 +600,38 @@ export const DEFAULT_COMPONENT_REGISTRY = {
     export: "createScheduler",
   },
   "ui.menu": {
-    js: "./ui.menu.js",
-    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.nav.css"],
+    js: `./ui.menu.js?v=${UI_NAV_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, `../../css/ui/ui.nav.css?v=${UI_NAV_REV}`],
     deps: [],
     export: "createMenu",
   },
   "ui.dropdown": {
-    js: "./ui.dropdown.js",
-    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.nav.css"],
+    js: `./ui.dropdown.js?v=${UI_NAV_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, `../../css/ui/ui.nav.css?v=${UI_NAV_REV}`],
     deps: ["ui.menu"],
     export: "createDropdown",
   },
   "ui.dropup": {
-    js: "./ui.dropup.js",
-    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.nav.css"],
+    js: `./ui.dropup.js?v=${UI_NAV_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, `../../css/ui/ui.nav.css?v=${UI_NAV_REV}`],
     deps: ["ui.menu"],
     export: "createDropup",
   },
   "ui.navbar": {
-    js: "./ui.navbar.js",
-    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.nav.css"],
+    js: `./ui.navbar.js?v=${UI_NAV_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, `../../css/ui/ui.nav.css?v=${UI_NAV_REV}`],
     deps: ["ui.dropdown"],
     export: "createNavbar",
   },
   "ui.sidebar": {
-    js: "./ui.sidebar.js",
-    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.nav.css"],
+    js: `./ui.sidebar.js?v=${UI_NAV_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, `../../css/ui/ui.nav.css?v=${UI_NAV_REV}`],
     deps: [],
     export: "createSidebar",
   },
   "ui.breadcrumbs": {
-    js: "./ui.breadcrumbs.js",
-    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, "../../css/ui/ui.nav.css"],
+    js: `./ui.breadcrumbs.js?v=${UI_NAV_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, `../../css/ui/ui.nav.css?v=${UI_NAV_REV}`],
     deps: [],
     export: "createBreadcrumbs",
   },
@@ -424,10 +647,16 @@ export const DEFAULT_COMPONENT_REGISTRY = {
     deps: [],
     export: "createAudioGraph",
   },
+  "ui.audio.timeline": {
+    js: `./ui.audio.timeline.js?v=${UI_AUDIO_REV}`,
+    css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, `../../css/ui/ui.audio.css?v=${UI_AUDIO_REV}`],
+    deps: ["ui.audio.player", "ui.audio.audiograph"],
+    export: "createAudioTimeline",
+  },
   "ui.audio.callSession": {
     js: `./ui.audio.callSession.js?v=${UI_AUDIO_REV}`,
     css: [UI_TOKENS_CSS, UI_COMPONENTS_CSS, `../../css/ui/ui.audio.css?v=${UI_AUDIO_REV}`],
-    deps: ["ui.audio.player", "ui.audio.audiograph"],
+    deps: ["ui.audio.timeline"],
     export: "createAudioCallSession",
   },
   "incident.base": {
@@ -482,11 +711,13 @@ export const DEFAULT_COMPONENT_REGISTRY = {
       UI_TOKENS_CSS,
       UI_COMPONENTS_CSS,
       INCIDENT_BASE_CSS,
+      "../../css/ui/ui.number.stepper.css",
       "../../css/incident/incident.base.css",
       "../../css/incident/incident.types.css",
+      "../../css/ui/ui.field.group.css",
       "../../css/incident/incident.types.details.editor.css",
     ],
-    deps: ["incident.base"],
+    deps: ["incident.base", "ui.field.group"],
     export: "incidentTypesDetailsEditor",
   },
   "incident.types.details.viewer": {
@@ -508,8 +739,10 @@ export const DEFAULT_COMPONENT_REGISTRY = {
       UI_TOKENS_CSS,
       UI_COMPONENTS_CSS,
       INCIDENT_BASE_CSS,
+      "../../css/ui/ui.number.stepper.css",
       "../../css/incident/incident.base.css",
       "../../css/incident/incident.types.css",
+      "../../css/ui/ui.field.group.css",
       "../../css/incident/incident.types.details.editor.css",
       "../../css/incident/incident.types.details.viewer.css",
     ],
@@ -543,8 +776,18 @@ export const DEFAULT_COMPONENT_GROUPS = {
     "ui.form.modal.status",
     "ui.form.modal.reason",
     "ui.password",
+    "ui.path.picker",
+    "ui.file.input",
+    "ui.checkbox",
+    "ui.checkbox.group",
+    "ui.combobox",
+    "ui.field.group",
+    "ui.field.group.presets",
     "ui.fieldset",
     "ui.property.editor",
+    "ui.property.viewer",
+    "ui.device.selector",
+    "ui.device.selector.media",
     "ui.select",
     "ui.tree.select",
     "ui.toggle.button",
@@ -559,12 +802,27 @@ export const DEFAULT_COMPONENT_GROUPS = {
   ],
   data: [
     "ui.grid",
+    "ui.calendar",
     "ui.tree.grid",
     "ui.hierarchy.map",
+    "ui.tree.mind.map",
     "ui.progress",
     "ui.virtual.list",
     "ui.scheduler",
+    "ui.elapsed.time",
+    "ui.clock",
+    "ui.signal.strength",
+    "ui.heartbeat.strip",
+    "ui.stat.cards",
+    "ui.icon.grid",
+    "ui.map.controls",
+    "ui.map.legend",
+    "ui.map.markers",
+    "ui.map.drawing",
+    "ui.charts",
+    "ui.chart.xy",
     "ui.timeline",
+    "ui.activity.chart",
     "ui.timeline.scrubber",
     "ui.data.inspector",
     "ui.empty.state",
@@ -575,14 +833,25 @@ export const DEFAULT_COMPONENT_GROUPS = {
     "ui.media.viewer",
     "ui.audio.player",
     "ui.audio.audiograph",
+    "ui.audio.timeline",
     "ui.audio.callSession",
+  ],
+  games: [
+    "ui.game.core",
+    "ui.game.objects",
+    "ui.game.grid",
+    "ui.game.audio",
+    "ui.game.effects",
+    "ui.game.state.chrome",
   ],
   workflow: [
     "ui.command.palette",
     "ui.tree",
     "ui.kanban",
     "ui.stepper",
+    "ui.number.stepper",
     "ui.splitter",
+    "ui.navigation.stack",
     "ui.tabs",
     "ui.strips",
   ],
@@ -597,10 +866,17 @@ const DEFAULT_LOADER_OPTIONS = {
   debug: false,
   preferBundles: false,
   bundles: {
+    game: {
+      prefixes: ["ui.game."],
+      js: UI_GAME_BUNDLE_JS,
+      css: [UI_GAME_BUNDLE_CSS],
+      globalName: "__PBB_HELPER_GAME_BUNDLE__",
+    },
     ui: {
-      prefixes: ["ui."],
+      prefixes: ["ui.", "incident."],
       js: UI_BUNDLE_JS,
       css: [UI_BUNDLE_CSS],
+      globalName: "__PBB_HELPER_UI_BUNDLE__",
     },
   },
 };
@@ -631,6 +907,7 @@ export function createUiLoader(initialRegistry = DEFAULT_COMPONENT_REGISTRY, con
           prefixes,
           js: String(bundle.js || ""),
           css: uniqueStrings(bundle.css),
+          globalName: String(bundle.globalName || ""),
         };
       }
     }
@@ -789,9 +1066,16 @@ export function createUiLoader(initialRegistry = DEFAULT_COMPONENT_REGISTRY, con
     if (bundlePromises.has(bundle.id)) {
       return bundlePromises.get(bundle.id);
     }
+    const globalModules = getBundleGlobalModules(bundle);
+    if (globalModules) {
+      const promise = Promise.resolve(globalModules);
+      bundlePromises.set(bundle.id, promise);
+      debugLog("bundle.global", { bundle: bundle.id });
+      return promise;
+    }
     const promise = import(toAbsoluteUrl(bundle.js))
       .then((module) => {
-        const exportsMap = module?.helperUiBundleModules || module?.default || null;
+        const exportsMap = module?.helperGameBundleModules || module?.helperUiBundleModules || module?.default || null;
         if (!exportsMap || typeof exportsMap !== "object") {
           throw new Error(`uiLoader bundle "${bundle.id}" did not expose a module map.`);
         }
@@ -1038,9 +1322,18 @@ function cloneBundles(bundles) {
       prefixes: uniqueStrings(bundle?.prefixes),
       js: String(bundle?.js || ""),
       css: uniqueStrings(bundle?.css),
+      globalName: String(bundle?.globalName || ""),
     };
   }
   return out;
+}
+
+function getBundleGlobalModules(bundle) {
+  if (typeof window === "undefined" || !bundle?.globalName) {
+    return null;
+  }
+  const modules = window[bundle.globalName];
+  return modules && typeof modules === "object" ? modules : null;
 }
 
 function createFailureRecord({ kind, id, path, error }) {
