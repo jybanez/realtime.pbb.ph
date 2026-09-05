@@ -46,7 +46,7 @@ paths:
         '401':
           description: Invalid backend secret
         '403':
-          description: Scope or room not allowed
+          description: Scope, room, or event type not allowed
         '422':
           description: Invalid request or payload too large
         '429':

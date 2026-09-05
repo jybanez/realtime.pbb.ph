@@ -209,6 +209,35 @@ class EventPublishTest extends TestCase
             ->assertJsonPath('reason', 'missing-capability');
     }
 
+    public function test_backend_publish_is_rejected_when_event_type_is_not_allowed_by_policy(): void
+    {
+        [$client, $project, $policy] = $this->makeAuthorizedPublishScope(returnPolicy: true);
+
+        $policy->update([
+            'capability_profile' => [
+                'events' => ['publish'],
+                'allowed_event_types' => ['hotline.alert_level.changed'],
+            ],
+        ]);
+
+        $this->postJson(route('api.events.publish'), [
+            'client_code' => $client->client_code,
+            'project_code' => $project->project_code,
+            'room' => 'hotline.settings.global',
+            'event_type' => 'hotline.alert_level.deleted',
+            'payload' => [
+                'alert_level' => 'high',
+            ],
+        ], [
+            'X-Realtime-Backend-Secret' => 'hotline-backend-secret',
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('status', 'rejected')
+            ->assertJsonPath('reason', 'event-type-not-allowed');
+
+        $this->assertDatabaseCount('realtime_server_events', 0);
+    }
+
     public function test_backend_publish_is_rate_limited_per_client_policy_limit(): void
     {
         [$client, $project, $policy] = $this->makeAuthorizedPublishScope(returnPolicy: true);

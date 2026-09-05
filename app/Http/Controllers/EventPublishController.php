@@ -59,7 +59,8 @@ class EventPublishController extends Controller
             $validated['client_code'],
             $validated['project_code'],
             $validated['room'],
-            $backendSecret
+            $backendSecret,
+            $validated['event_type']
         );
         $this->markStage($request, 'authorized', [
             'accepted' => $authorization->accepted,
@@ -110,7 +111,7 @@ class EventPublishController extends Controller
 
             $status = match ($authorization->reason) {
                 'invalid-backend-secret' => 401,
-                'missing-capability', 'room-not-allowed', 'inactive-client', 'inactive-project', 'missing-policy', 'client-project-mismatch' => 403,
+                'missing-capability', 'room-not-allowed', 'event-type-not-allowed', 'inactive-client', 'inactive-project', 'missing-policy', 'client-project-mismatch' => 403,
                 default => 422,
             };
 

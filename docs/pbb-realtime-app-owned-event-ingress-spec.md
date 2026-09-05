@@ -91,6 +91,11 @@ The effective policy must allow:
 
 V1 capability evaluation should reuse the current policy/capability model.
 
+If the effective policy capability profile includes `allowed_event_types`
+or `event_types`, the requested `event_type` must be an exact member of
+that list. Policies without either key preserve the legacy behavior and do
+not constrain backend event types beyond `event.publish`.
+
 ### Room Authorization
 
 Requested `room` must be allowed by the effective scope rules:
@@ -172,8 +177,8 @@ Example:
 {
   "service": "PBB Realtime",
   "status": "rejected",
-  "reason": "room-not-allowed",
-  "message": "The requested room is not allowed for this project scope."
+  "reason": "event-type-not-allowed",
+  "message": "The requested event type is not allowed for this project scope."
 }
 ```
 
@@ -282,6 +287,7 @@ Recommended reason codes:
 - `inactive-project`
 - `missing-capability`
 - `room-not-allowed`
+- `event-type-not-allowed`
 - `payload-too-large`
 - `rate-limit-exceeded`
 - `invalid-request`

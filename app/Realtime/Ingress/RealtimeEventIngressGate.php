@@ -15,7 +15,8 @@ class RealtimeEventIngressGate
         string $clientCode,
         string $projectCode,
         string $room,
-        string $backendSecret
+        string $backendSecret,
+        ?string $eventType = null
     ): RealtimeEventIngressAuthorizationResult {
         $this->markStage('authorize.start');
 
@@ -90,6 +91,10 @@ class RealtimeEventIngressGate
             return RealtimeEventIngressAuthorizationResult::reject('room-not-allowed', 'The requested room is not allowed for this project scope.');
         }
 
+        if (!$this->allowsEventType($policy, trim((string) $eventType))) {
+            return RealtimeEventIngressAuthorizationResult::reject('event-type-not-allowed', 'The requested event type is not allowed for this project scope.');
+        }
+
         $this->markStage('authorize.completed');
 
         return RealtimeEventIngressAuthorizationResult::accept($client, $project, $policy);
@@ -148,6 +153,22 @@ class RealtimeEventIngressGate
         }
 
         return false;
+    }
+
+    private function allowsEventType(RealtimePolicy $policy, string $eventType): bool
+    {
+        if ($eventType === '') {
+            return false;
+        }
+
+        $profile = is_array($policy->capability_profile) ? $policy->capability_profile : [];
+        $allowed = $this->stringList($profile['allowed_event_types'] ?? $profile['event_types'] ?? []);
+
+        if ($allowed === []) {
+            return true;
+        }
+
+        return in_array($eventType, $allowed, true);
     }
 
     /**
