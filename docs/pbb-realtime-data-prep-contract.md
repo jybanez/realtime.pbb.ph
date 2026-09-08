@@ -38,6 +38,46 @@ C:/wamp64/bin/php/php8.2.29/php.exe <tool> --mode initial --config <config.json>
 
 Supported modes remain app-tool modes: `initial`, `repair`, `refresh`, and `demo`. Data Prep is the Kit workflow name, not a mode value.
 
+## Node Commissioning Adapter Contract
+
+`release.json` also publishes trusted Node commissioning adapters under `commissioning.adapters`. Kit Setup must discover these commands from the installed Realtime `release.json`; shared deployment plans should carry identifiers only and must not embed executable command descriptors or raw secrets.
+
+Realtime currently provides:
+
+- provider capability: `realtime.backend-ingress`
+- provision command: `tools/commissioning/realtime-adapter.php provision realtime.backend-ingress`
+- verify command: `tools/commissioning/realtime-adapter.php verify-provider realtime.backend-ingress`
+
+Kit supplies `PBB_COMMISSIONING_CONTEXT` and resolves `{php_binary}` from its runtime config. The adapter accepts a registered `client_code` and optional `project_code` from the context, verifies that the records belong to Realtime, generates a transient backend ingress secret, stores only Realtime's hash/digest on `realtime_clients`, and returns the raw secret only in the adapter response so Kit can pass it directly to the consumer app's `apply` adapter through `PBB_COMMISSIONING_SECRET`.
+
+Provider responses use this shape:
+
+```json
+{
+  "status": "success",
+  "credential_reference": "pbb-realtime:backend-ingress:clt_PBB_SUPPORT:prj_SUPPORT_SERVER",
+  "secret": "<transient secret for Kit handoff only>",
+  "identifiers": {
+    "client_code": "clt_PBB_SUPPORT",
+    "project_code": "prj_SUPPORT_SERVER"
+  }
+}
+```
+
+Verification responses omit the raw secret and return `status=success` only when the client/project scope exists and the client has a stored backend ingress secret digest.
+
+Future PBB apps that integrate with Realtime should become commissioning-compliant by doing all of the following:
+
+- publish their own installed `release.json` consumer adapter for the capability they need from Realtime
+- reference Realtime as provider capability `realtime.backend-ingress`
+- include their Realtime `client_code` and relevant `project_code` identifiers in the commissioning context or shared plan metadata
+- accept the transient secret from `PBB_COMMISSIONING_SECRET` only during their consumer `apply` command
+- persist the secret in their own protected runtime settings store, not in the shared plan or public config
+- implement a consumer `verify` adapter that proves its stored credential reference/settings match the Realtime relationship without printing the secret
+- restart only the services that actually need the updated credential
+
+This keeps onboarding scalable for many clients and projects: Realtime remains the owner of registered client/project/policy codes and backend ingress validation, while each consuming app owns its local credential storage and verification.
+
 ## Prepare Data
 
 `tools/populate-initial-data.php` imports Realtime client records from:

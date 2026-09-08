@@ -86,6 +86,8 @@ Data Prep also includes:
 
 Apply Settings persists Maestro telemetry settings into `realtime_runtime_settings`, including the telemetry token and optional CA bundle path supplied by Kit. Reports must remain secret-safe.
 
+Installed Realtime releases also publish the Node commissioning provider adapter `realtime.backend-ingress` in `release.json`. Kit Setup discovers this trusted command from the installed release metadata, passes only identifiers in `PBB_COMMISSIONING_CONTEXT`, and receives the transient backend ingress secret only long enough to hand it to the matching consumer adapter. See the Data Prep contract for the exact adapter response shape and future-app compliance requirements.
+
 See [pbb-realtime-data-prep-contract.md](pbb-realtime-data-prep-contract.md) for the current Data Prep contract.
 
 ## Validation Target
@@ -97,4 +99,4 @@ The install should be considered usable only after:
 - `/admin/sandbox` can connect successfully
 - Kit starts `pbb-realtime-websocket` and `pbb-realtime-media-dispatcher`
 - Data Prep Verify reports the Hotline records and Maestro telemetry settings as present when Data Prep is run
-
+- Kit can resolve `commissioning.adapters.providers.realtime.backend-ingress` from the installed `release.json`

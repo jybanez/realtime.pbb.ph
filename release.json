@@ -171,6 +171,33 @@
       }
     }
   },
+  "commissioning": {
+    "contract_version": 1,
+    "capabilities": {
+      "providers": ["realtime.backend-ingress"],
+      "consumers": [],
+      "node_checks": []
+    },
+    "adapters": {
+      "providers": {
+        "realtime.backend-ingress": {
+          "provision": {
+            "type": "command",
+            "command": ["{php_binary}", "tools/commissioning/realtime-adapter.php", "provision", "realtime.backend-ingress"],
+            "timeout_seconds": 120
+          },
+          "verify": {
+            "type": "command",
+            "command": ["{php_binary}", "tools/commissioning/realtime-adapter.php", "verify-provider", "realtime.backend-ingress"],
+            "timeout_seconds": 60
+          }
+        }
+      },
+      "consumers": {},
+      "node_checks": {}
+    },
+    "notes": "Kit Setup resolves these trusted adapter commands from the installed release.json. The realtime.backend-ingress provider requires a registered client_code and optional project_code in the commissioning context, stores only a hash/digest in Realtime, and returns the transient secret only to Kit for the matching consumer apply step."
+  },
   "health": {
     "http": "/api/health",
     "ready": "/api/ready",
