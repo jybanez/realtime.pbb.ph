@@ -1,0 +1,186 @@
+"""Independent stdlib/Windows-API outer watchdog preparation, never auto-run.
+
+Only two scopes: compile the reviewed C# source, or run its prepared fixture driver.
+This does not import/use WindowsDiagnosticJob to certify its own containment.
+Source review and a separately verified Python/PowerShell runtime are prerequisites.
+"""
+import argparse
+import ctypes as c
+from ctypes import wintypes as w
+import json
+import os
+from pathlib import Path
+import subprocess
+import threading
+import time
+
+class SA(c.Structure):
+    _fields_ = [('size', w.DWORD), ('descriptor', c.c_void_p), ('inherit', w.BOOL)]
+class SI(c.Structure):
+    _fields_ = [('size', w.DWORD), ('reserved', w.LPWSTR), ('desktop', w.LPWSTR), ('title', w.LPWSTR), *[(name, w.DWORD) for name in ('x','y','width','height','columns','rows','fill','flags')], ('show', w.WORD), ('reserved_size', w.WORD), ('reserved_bytes', c.c_void_p), ('stdin', w.HANDLE), ('stdout', w.HANDLE), ('stderr', w.HANDLE)]
+class SIEX(c.Structure):
+    _fields_ = [('startup', SI), ('attributes', c.c_void_p)]
+class PI(c.Structure):
+    _fields_ = [('process', w.HANDLE), ('thread', w.HANDLE), ('pid', w.DWORD), ('tid', w.DWORD)]
+class Basic(c.Structure):
+    _fields_ = [('process_time', c.c_longlong), ('job_time', c.c_longlong), ('flags', w.DWORD), ('minimum', c.c_size_t), ('maximum', c.c_size_t), ('active_limit', w.DWORD), ('affinity', c.c_size_t), ('priority', w.DWORD), ('scheduling', w.DWORD)]
+class IO(c.Structure):
+    _fields_ = [(name, c.c_ulonglong) for name in ('read_ops','write_ops','other_ops','read_bytes','write_bytes','other_bytes')]
+class Extended(c.Structure):
+    _fields_ = [('basic', Basic), ('io', IO), *[(name, c.c_size_t) for name in ('process_memory','job_memory','peak_process','peak_job')]]
+class Accounting(c.Structure):
+    _fields_ = [(name, c.c_longlong) for name in ('user','kernel','period_user','period_kernel')] + [(name, w.DWORD) for name in ('faults','total','active','terminated')]
+
+def main():
+    if os.name != 'nt':
+        raise SystemExit('Windows only')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--phase', choices=['compile','driver'], required=True)
+    parser.add_argument('--powershell', required=True)
+    parser.add_argument('--evidence', required=True)
+    args = parser.parse_args()
+    root = Path(__file__).resolve().parent.parent
+    evidence = Path(args.evidence).resolve()
+    evidence.mkdir(exist_ok=False)
+    shell = str(Path(args.powershell).resolve(strict=True))
+    if args.phase == 'compile':
+        source = str(root / 'tools' / 'WindowsDiagnosticJob.cs').replace("'", "''")
+        command = [shell, '-NoProfile', '-Command', "$ErrorActionPreference='Stop'; Add-Type -Path '" + source + "'"]
+        seconds = 30
+    else:
+        command = [shell, '-NoProfile', '-File', str(root / 'tests/fixtures/review-diagnostic-job-regressions.ps1'), '-EvidenceDirectory', str(evidence / 'cases')]
+        seconds = 20
+    kernel = c.WinDLL('kernel32', use_last_error=True)
+    signatures = {
+        'CreateJobObjectW': (w.HANDLE, [c.c_void_p,w.LPCWSTR]),
+        'SetInformationJobObject': (w.BOOL,[w.HANDLE,c.c_int,c.c_void_p,w.DWORD]),
+        'QueryInformationJobObject': (w.BOOL,[w.HANDLE,c.c_int,c.c_void_p,w.DWORD,c.c_void_p]),
+        'AssignProcessToJobObject': (w.BOOL,[w.HANDLE,w.HANDLE]),
+        'TerminateJobObject': (w.BOOL,[w.HANDLE,w.UINT]),
+        'TerminateProcess': (w.BOOL,[w.HANDLE,w.UINT]),
+        'CreatePipe': (w.BOOL,[c.POINTER(w.HANDLE),c.POINTER(w.HANDLE),c.POINTER(SA),w.DWORD]),
+        'SetHandleInformation': (w.BOOL,[w.HANDLE,w.DWORD,w.DWORD]),
+        'CreateFileW': (w.HANDLE,[w.LPCWSTR,w.DWORD,w.DWORD,c.POINTER(SA),w.DWORD,w.DWORD,w.HANDLE]),
+        'InitializeProcThreadAttributeList': (w.BOOL,[c.c_void_p,w.DWORD,w.DWORD,c.POINTER(c.c_size_t)]),
+        'UpdateProcThreadAttribute': (w.BOOL,[c.c_void_p,w.DWORD,c.c_size_t,c.c_void_p,c.c_size_t,c.c_void_p,c.c_void_p]),
+        'DeleteProcThreadAttributeList': (None,[c.c_void_p]),
+        'CreateProcessW': (w.BOOL,[w.LPCWSTR,w.LPWSTR,c.c_void_p,c.c_void_p,w.BOOL,w.DWORD,c.c_void_p,w.LPCWSTR,c.POINTER(SIEX),c.POINTER(PI)]),
+        'ResumeThread': (w.DWORD,[w.HANDLE]),
+        'WaitForSingleObject': (w.DWORD,[w.HANDLE,w.DWORD]),
+        'GetExitCodeProcess': (w.BOOL,[w.HANDLE,c.POINTER(w.DWORD)]),
+        'PeekNamedPipe': (w.BOOL,[w.HANDLE,c.c_void_p,w.DWORD,c.c_void_p,c.POINTER(w.DWORD),c.c_void_p]),
+        'ReadFile': (w.BOOL,[w.HANDLE,c.c_void_p,w.DWORD,c.POINTER(w.DWORD),c.c_void_p]),
+        'CloseHandle': (w.BOOL,[w.HANDLE]),
+    }
+    for name,(result,parameters) in signatures.items():
+        fn=getattr(kernel,name); fn.restype=result; fn.argtypes=parameters
+    def checked(value, label):
+        if not value: raise RuntimeError(label)
+        return value
+    handles=[]; job=None; pi=PI(); attributes=None; initialized=False; assigned=False; resumed=False
+    stop=threading.Event(); drainers=[]; outputs=[]; read_handles=[]; output_lock=threading.Lock()
+    report={'phase':args.phase,'deadline_seconds':seconds,'root_reaped':False,'tree_cleanup_verified':False,'failure':None,'timeout':False,'root_exit':None}
+    def drain(handle, state):
+        buffer=c.create_string_buffer(256)
+        try:
+            while not stop.is_set():
+                available=w.DWORD()
+                if not kernel.PeekNamedPipe(handle,None,0,None,c.byref(available),None):
+                    state['complete']=c.get_last_error()==109
+                    state['failed']=not state['complete']; break
+                if not available.value: time.sleep(.01); continue
+                count=w.DWORD()
+                checked(kernel.ReadFile(handle,buffer,min(256,available.value),c.byref(count),None),'drain_read')
+                if not count.value: state['complete']=True; break
+                with output_lock:
+                    keep=min(count.value,8192-len(state['data']))
+                    state['data'].extend(buffer.raw[:keep]); state['truncated'] |= keep<count.value
+        except Exception:
+            state['failed']=True
+        finally:
+            if not kernel.CloseHandle(handle): state['failed']=True; state['complete']=False
+    writers=[]
+    try:
+        job=checked(kernel.CreateJobObjectW(None,None),'job_create')
+        limits=Extended(); limits.basic.flags=0x2000
+        checked(kernel.SetInformationJobObject(job,9,c.byref(limits),c.sizeof(limits)),'job_limits')
+        sa=SA(c.sizeof(SA),None,True)
+        stdin=kernel.CreateFileW('NUL',0x80000000,3,c.byref(sa),3,0,None)
+        if stdin==c.c_void_p(-1).value: raise RuntimeError('stdin_create')
+        handles.append(stdin)
+        for _ in range(2):
+            read=w.HANDLE(); write=w.HANDLE()
+            checked(kernel.CreatePipe(c.byref(read),c.byref(write),c.byref(sa),0),'pipe_create')
+            handles.extend([read.value,write.value]); writers.append(write.value)
+            read_handles.append(read.value)
+            checked(kernel.SetHandleInformation(read,1,0),'read_inheritance')
+            state={'data':bytearray(),'complete':False,'truncated':False,'failed':False}
+            outputs.append(state)
+            thread=threading.Thread(target=drain,args=(read.value,state),daemon=True)
+            drainers.append(thread)
+        size=c.c_size_t()
+        kernel.InitializeProcThreadAttributeList(None,1,0,c.byref(size))
+        attributes=c.create_string_buffer(size.value)
+        checked(kernel.InitializeProcThreadAttributeList(attributes,1,0,c.byref(size)),'attributes_init'); initialized=True
+        intended=(w.HANDLE*3)(stdin,*writers)
+        checked(kernel.UpdateProcThreadAttribute(attributes,0,0x20002,intended,c.sizeof(intended),None,None),'handle_list')
+        startup=SIEX(); startup.startup.size=c.sizeof(SIEX); startup.startup.flags=0x100
+        startup.startup.stdin=stdin; startup.startup.stdout=writers[0]; startup.startup.stderr=writers[1]
+        startup.attributes=c.cast(attributes,c.c_void_p)
+        checked(kernel.CreateProcessW(shell,c.create_unicode_buffer(subprocess.list2cmdline(command)),None,None,True,0x08080004,None,str(root),c.byref(startup),c.byref(pi)),'launch')
+        report['pid']=pi.pid
+        checked(kernel.AssignProcessToJobObject(job,pi.process),'assignment'); assigned=True
+        for writer in writers: kernel.CloseHandle(writer); handles.remove(writer)
+        writers=[]
+        for index,thread in enumerate(drainers):
+            # Ownership transfers to drainer only once its thread actually starts.
+            thread.start(); handles.remove(read_handles[index])
+        checked(kernel.ResumeThread(pi.thread)!=0xFFFFFFFF,'resume'); resumed=True
+        deadline=time.monotonic()+seconds
+        while kernel.WaitForSingleObject(pi.process,0)!=0 and time.monotonic()<deadline: time.sleep(.01)
+        report['root_reaped']=kernel.WaitForSingleObject(pi.process,0)==0
+        report['timeout']=not report['root_reaped']
+        code=w.DWORD()
+        if report['root_reaped'] and kernel.GetExitCodeProcess(pi.process,c.byref(code)): report['root_exit']=code.value
+    except Exception as error:
+        report['failure']=str(error) if isinstance(error,RuntimeError) else type(error).__name__
+    finally:
+        cleanup=time.monotonic()+1
+        if assigned:
+            accounting=Accounting()
+            if not kernel.QueryInformationJobObject(job,1,c.byref(accounting),c.sizeof(accounting),None): report['failure']='cleanup_query'
+            elif accounting.active:
+                report['termination_requested']=bool(kernel.TerminateJobObject(job,124))
+            while time.monotonic()<cleanup:
+                if not kernel.QueryInformationJobObject(job,1,c.byref(accounting),c.sizeof(accounting),None): break
+                if not accounting.active: report['tree_cleanup_verified']=True; break
+                time.sleep(.01)
+        elif pi.process:
+            kernel.TerminateProcess(pi.process,124)
+            while kernel.WaitForSingleObject(pi.process,0)!=0 and time.monotonic()<cleanup: time.sleep(.01)
+            report['tree_cleanup_verified']=not resumed and kernel.WaitForSingleObject(pi.process,0)==0
+        if pi.process: report['root_reaped']=kernel.WaitForSingleObject(pi.process,0)==0
+        for writer in writers:
+            if writer in handles: kernel.CloseHandle(writer); handles.remove(writer)
+        for thread in drainers:
+            if thread.ident is not None: thread.join(max(0,cleanup-time.monotonic()))
+        stop.set()
+        if initialized: kernel.DeleteProcThreadAttributeList(attributes)
+        for handle in handles: kernel.CloseHandle(handle)
+        if job: kernel.CloseHandle(job)
+        if pi.thread: kernel.CloseHandle(pi.thread)
+        if pi.process: kernel.CloseHandle(pi.process)
+    snapshots=[]
+    for name,state in zip(['stdout','stderr'],outputs):
+        with output_lock:
+            snapshot={key:value for key,value in state.items() if key!='data'}
+            retained=bytes(state['data'])
+        (evidence/name).write_bytes(retained)
+        report[name]=snapshot; snapshots.append(snapshot)
+    success=report['failure'] is None and not report['timeout'] and report['root_reaped'] and report['tree_cleanup_verified'] and len(snapshots)==2 and all(s['complete'] and not s['failed'] for s in snapshots)
+    report['exit']=report['root_exit'] if success and report['root_exit'] is not None else 124
+    (evidence/'outer.json').write_text(json.dumps(report),encoding='utf-8')
+    return report['exit']
+
+if __name__=='__main__':
+    raise SystemExit(main())
