@@ -137,7 +137,7 @@ class RealtimeServeCommand extends Command
                 );
 
                 $mediaResult = ['processed' => 0, 'failed' => 0];
-                if ((bool) config('realtime.embedded_media_chunk_dispatch_enabled', true)) {
+                if ((bool) config('realtime.embedded_media_chunk_dispatch_enabled', false)) {
                     $mediaResult = $mediaChunkDispatcher->drain(
                         (int) config('realtime.media_chunk_dispatch_batch_size', 25),
                         $gateway
@@ -152,7 +152,7 @@ class RealtimeServeCommand extends Command
         );
         $this->logBootStage('boot.dispatch_timer.registered', [
             'interval_seconds' => max(1, (int) config('realtime.event_publish_drain_interval_seconds', 1)),
-            'embedded_media_chunk_dispatch_enabled' => (bool) config('realtime.embedded_media_chunk_dispatch_enabled', true),
+            'embedded_media_chunk_dispatch_enabled' => (bool) config('realtime.embedded_media_chunk_dispatch_enabled', false),
             'media_chunk_dispatch_batch_size' => (int) config('realtime.media_chunk_dispatch_batch_size', 25),
         ]);
 

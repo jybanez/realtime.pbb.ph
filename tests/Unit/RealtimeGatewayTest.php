@@ -550,6 +550,8 @@ class RealtimeGatewayTest extends TestCase
 
     public function test_it_fans_out_browser_published_app_events(): void
     {
+        config(['realtime.gateway_timing_enabled' => true]);
+        \Illuminate\Support\Facades\Log::spy();
         $gateway = $this->gateway();
         $token = $this->token([
             'jti' => 'rt_gateway_004b',
@@ -600,6 +602,24 @@ class RealtimeGatewayTest extends TestCase
         $this->assertSame('app.event.publish', $ack['type']);
         $this->assertTrue($ack['payload']['published']);
         $this->assertSame('citizen.call.request', $ack['payload']['event_type']);
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('info')->with(
+            'Realtime gateway publish fanout completed.',
+            \Mockery::on(fn ($context) => $context['request_id'] === 'msg_event_001'
+                && $context['event_type'] === 'citizen.call.request'
+                && $context['fanout_count'] === 2
+                && !str_contains(json_encode($context), 'call_001'))
+        )->once();
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('info')->with(
+            'Realtime gateway ACK sent to connection.',
+            \Mockery::on(fn ($context) => $context['request_id'] === 'msg_event_001'
+                && $context['request_type'] === 'app.event.publish')
+        )->once();
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('log')->with(
+            'info', 'Realtime gateway callback timing.',
+            \Mockery::on(fn ($context) => $context['stage'] === 'request'
+                && $context['request_id'] === 'msg_event_001'
+                && $context['event_type'] === 'citizen.call.request')
+        )->once();
     }
 
     public function test_it_forwards_product_query_requests_to_product_backend(): void

@@ -27,7 +27,7 @@ return [
     'event_publish_trace_enabled' => filter_var(env('REALTIME_EVENT_PUBLISH_TRACE', false), FILTER_VALIDATE_BOOL),
     'event_publish_drain_interval_seconds' => (int) env('REALTIME_EVENT_PUBLISH_DRAIN_INTERVAL_SECONDS', 1),
     'event_publish_drain_batch_size' => (int) env('REALTIME_EVENT_PUBLISH_DRAIN_BATCH_SIZE', 100),
-    'embedded_media_chunk_dispatch_enabled' => filter_var(env('REALTIME_EMBEDDED_MEDIA_CHUNK_DISPATCH_ENABLED', true), FILTER_VALIDATE_BOOL),
+    'embedded_media_chunk_dispatch_enabled' => filter_var(env('REALTIME_EMBEDDED_MEDIA_CHUNK_DISPATCH_ENABLED', false), FILTER_VALIDATE_BOOL),
     'media_chunk_dispatch_batch_size' => (int) env('REALTIME_MEDIA_CHUNK_DISPATCH_BATCH_SIZE', 25),
     'media_chunk_dispatch_claim_timeout_seconds' => max(30, (int) env('REALTIME_MEDIA_CHUNK_DISPATCH_CLAIM_TIMEOUT_SECONDS', 300)),
     'media_chunk_spool_path' => env('REALTIME_MEDIA_CHUNK_SPOOL_PATH', storage_path('app/realtime-media-chunks')),
