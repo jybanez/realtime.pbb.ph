@@ -35,7 +35,7 @@ class RealtimeTransportObserver
         $conn->realtimeTransportTrace = (object) [
             'id' => getmypid().'-'.(++$this->sequence),
             'accept_ns' => hrtime(true), 'accept_utc' => self::utc(),
-            'first_ns' => null, 'first_utc' => null, 'attempt' => null,
+            'first_ns' => null, 'first_utc' => null, 'attempt' => null, 'gateway_id' => null,
         ];
     }
 
@@ -53,11 +53,13 @@ class RealtimeTransportObserver
         $state = $conn->realtimeTransportTrace ?? null;
         if (!$state) { return; }
         $now = hrtime(true);
+        $state->gateway_id = spl_object_hash($conn);
         $query = ($conn->httpRequest ?? null)?->getUri()->getQuery() ?? '';
         // Extract only the dedicated field, never copy tokens/headers into records.
         $state->attempt = self::attemptId($query);
         $this->emit([
             'stage' => 'transport.upgraded', 'connection_id' => $state->id, 'attempt_id' => $state->attempt,
+            'gateway_connection_id' => $state->gateway_id,
             'loop_accept_utc' => $state->accept_utc, 'first_data_utc' => $state->first_utc,
             'upgraded_utc' => self::utc(),
             'loop_accept_to_upgrade_ms' => round(($now - $state->accept_ns) / 1e6, 3),
@@ -72,7 +74,7 @@ class RealtimeTransportObserver
         unset($conn->realtimeTransportTrace);
         --$this->active;
         $this->emit(['stage' => 'transport.closed', 'connection_id' => $state->id,
-            'attempt_id' => $state->attempt, 'closed_utc' => self::utc()]);
+            'gateway_connection_id' => $state->gateway_id, 'attempt_id' => $state->attempt, 'closed_utc' => self::utc()]);
     }
 
     private function emit(array $record): void
@@ -91,6 +93,11 @@ class RealtimeTransportObserver
         if (preg_match_all('/(?:^|&)diag_attempt=([^&]*)/', $query, $matches) !== 1) { return null; }
         return preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/D', $matches[1][0]) ? $matches[1][0] : null;
     }
-    private static function utc(): string { return gmdate('Y-m-d\TH:i:s').sprintf('.%03dZ', ((int) (microtime(true) * 1000)) % 1000); }
+    private static function utc(): string
+    {
+        $stamp = microtime(true);
+        $seconds = (int) $stamp;
+        return gmdate('Y-m-d\TH:i:s', $seconds).sprintf('.%03dZ', (int) (($stamp - $seconds) * 1000));
+    }
     public function __destruct() { if ($this->socket) { socket_close($this->socket); } }
 }

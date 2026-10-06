@@ -38,6 +38,7 @@ class RealtimeTransportObserverTest extends TestCase
         $record = json_decode($packet, true, 512, JSON_THROW_ON_ERROR);
         $this->assertSame($uuid, $record['attempt_id']);
         $this->assertSame($conn->realtimeTransportTrace->id, $product->opened->realtimeTransportTrace->id);
+        $this->assertSame(spl_object_hash($product->opened), $record['gateway_connection_id']);
         $this->assertSame('transport.upgraded', $record['stage']);
         $this->assertStringNotContainsString('PRIVATE-TOKEN', $packet);
         $this->assertStringContainsString('101 Switching Protocols', $conn->sent[0]);
