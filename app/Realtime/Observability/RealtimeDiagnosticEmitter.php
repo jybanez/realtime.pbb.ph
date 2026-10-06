@@ -49,7 +49,7 @@ class RealtimeDiagnosticEmitter
                     if (is_int($value) || is_float($value)) { $safe[$key][$operation] = $value; }
                 }
             }
-            $record = json_encode(['level' => $level === 'warning' ? 'warning' : 'info', 'message' => mb_strcut($message, 0, 160, 'UTF-8'), 'context' => $safe], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+            $record = json_encode(['sequence' => $this->attempted, 'level' => $level === 'warning' ? 'warning' : 'info', 'message' => mb_strcut($message, 0, 160, 'UTF-8'), 'context' => $safe], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
             $length = strlen($record);
             if ($length > 2048) { ++$this->drops['oversize']; return; }
             if ($this->bytes + $length > 4194304) { ++$this->drops['cap']; return; }
