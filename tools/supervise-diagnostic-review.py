@@ -36,7 +36,7 @@ def main():
     if os.name != 'nt':
         raise SystemExit('Windows only')
     parser = argparse.ArgumentParser()
-    parser.add_argument('--phase', choices=['compile','driver','sequence'], required=True)
+    parser.add_argument('--phase', choices=['identity','compile','driver','sequence'], required=True)
     parser.add_argument('--powershell', required=True)
     parser.add_argument('--evidence', required=True)
     parser.add_argument('--compiled-evidence')
@@ -47,7 +47,11 @@ def main():
     shell = str(Path(args.powershell).resolve(strict=True))
     source_path = root / 'tools' / 'WindowsDiagnosticJob.cs'
     source_hash = hashlib.sha256(source_path.read_bytes()).hexdigest()
-    if args.phase == 'compile':
+    if args.phase == 'identity':
+        if args.compiled_evidence: raise SystemExit('identity takes no compile evidence')
+        command = [shell, '-NoProfile', '-File', str(root / 'tools/read-diagnostic-runtime-identity.ps1'), '-PythonPath', str(Path(__import__('sys').executable).resolve())]
+        seconds = 10
+    elif args.phase == 'compile':
         if args.compiled_evidence: raise SystemExit('compile takes no prior assembly')
         source = str(source_path).replace("'", "''")
         assembly = evidence / 'WindowsDiagnosticJob.dll'
