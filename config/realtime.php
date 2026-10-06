@@ -5,6 +5,7 @@ return [
     'telemetry_spool_path' => storage_path('app/realtime-telemetry'),
     'telemetry_spool_slots' => 128,
     'gateway_timing_enabled' => filter_var(env('REALTIME_GATEWAY_TIMING_ENABLED', false), FILTER_VALIDATE_BOOL),
+    'gateway_diagnostic_udp_port' => (int) env('REALTIME_GATEWAY_DIAGNOSTIC_UDP_PORT', 9998),
     'token_audience' => env('REALTIME_TOKEN_AUDIENCE', 'pbb-realtime'),
     'token_signing_secret' => env('REALTIME_TOKEN_SIGNING_SECRET', ''),
     'trusted_issuers' => array_values(array_filter(array_map(

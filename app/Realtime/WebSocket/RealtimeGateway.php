@@ -12,6 +12,7 @@ use App\Realtime\Rooms\RealtimeRoomPolicy;
 use App\Realtime\Sessions\RealtimeSessionRecorder;
 use App\Realtime\Observability\RealtimeMetrics;
 use App\Realtime\Observability\RealtimeCallbackDiagnostics;
+use App\Realtime\Observability\RealtimeDiagnosticEmitter;
 use Illuminate\Support\Facades\DB;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\Log;
@@ -29,6 +30,7 @@ class RealtimeGateway implements MessageComponentInterface
 
     private SplObjectStorage $connections;
     private RealtimeCallbackDiagnostics $callbackDiagnostics;
+    private RealtimeDiagnosticEmitter $diagnosticEmitter;
 
     /**
      * @var array<string, array<string, bool>>
@@ -62,6 +64,7 @@ class RealtimeGateway implements MessageComponentInterface
     ) {
         $this->connections = new SplObjectStorage();
         $this->callbackDiagnostics = new RealtimeCallbackDiagnostics();
+        $this->diagnosticEmitter = new RealtimeDiagnosticEmitter((bool) config('realtime.gateway_timing_enabled', false), (int) config('realtime.gateway_diagnostic_udp_port', 9998));
         if ((bool) config('realtime.gateway_timing_enabled', false)) {
             DB::listen(fn (\Illuminate\Database\Events\QueryExecuted $query) => $this->callbackDiagnostics->query($query));
         }
@@ -1597,7 +1600,7 @@ class RealtimeGateway implements MessageComponentInterface
         if (!(bool) config('realtime.gateway_timing_enabled', false)) {
             return;
         }
-        Log::info($message, array_merge($this->requestDiagnosticContext($request), $extra, [
+        $this->diagnosticEmitter->emit('info', $message, array_merge($this->requestDiagnosticContext($request), $extra, [
             'pid' => getmypid(),
             'connection_id' => spl_object_hash($conn),
             'session_id' => $this->sessionId($conn),
@@ -1621,14 +1624,19 @@ class RealtimeGateway implements MessageComponentInterface
                 $context = $this->callbackDiagnostics->end($elapsedMs);
             }
             if ($elapsedMs >= 1000 || $verbose) {
-                Log::log($elapsedMs >= 1000 ? 'warning' : 'info', 'Realtime gateway callback timing.', array_merge($context, [
+                $record = array_merge($context, [
                     'pid' => getmypid(),
                     'connection_id' => spl_object_hash($conn),
                     'session_id' => $this->connections->contains($conn) ? $this->sessionId($conn) : null,
                     'stage' => $stage,
                     'received_at' => $receivedAt,
                     'elapsed_ms' => round($elapsedMs, 3),
-                ]));
+                ]);
+                if ($verbose) {
+                    $this->diagnosticEmitter->emit($elapsedMs >= 1000 ? 'warning' : 'info', 'Realtime gateway callback timing.', $record);
+                } else {
+                    Log::warning('Realtime gateway callback timing.', $record);
+                }
             }
         }
     }

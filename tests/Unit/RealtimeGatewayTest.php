@@ -510,8 +510,10 @@ class RealtimeGatewayTest extends TestCase
     public function test_it_emits_call_signal_events(): void
     {
         config(['realtime.gateway_timing_enabled' => true]);
-        \Illuminate\Support\Facades\Log::spy();
+        $emitter = \Mockery::mock(\App\Realtime\Observability\RealtimeDiagnosticEmitter::class)->makePartial();
+        $emitter->shouldReceive('emit')->byDefault();
         $gateway = $this->gateway();
+        (new \ReflectionProperty($gateway, 'diagnosticEmitter'))->setValue($gateway, $emitter);
         $token = $this->token([
             'jti' => 'rt_gateway_004',
             'capabilities' => ['session.connect', 'room.join', 'call.signal'],
@@ -550,7 +552,7 @@ class RealtimeGatewayTest extends TestCase
         $this->assertSame('dummy-sdp', $messages[2]['payload']['sdp']);
         $this->assertSame('video', json_decode($messages[2]['payload']['meta_json'], true, 512, JSON_THROW_ON_ERROR)['mode']);
         foreach (['signal.authorize', 'signal.fanout', 'signal.metrics', 'signal.usage', 'signal.session.touch', 'ack.send', 'response.cache.write', 'response.cache.lookup'] as $stage) {
-            \Illuminate\Support\Facades\Log::shouldHaveReceived('log')->with(
+            $emitter->shouldHaveReceived('emit')->with(
                 'info', 'Realtime gateway callback timing.',
                 \Mockery::on(fn ($context) => $context['stage'] === $stage
                     && $context['request_id'] === 'msg_call_001'
@@ -562,7 +564,7 @@ class RealtimeGatewayTest extends TestCase
                     && !str_contains(json_encode($context), 'candidate:1'))
             )->once();
         }
-        \Illuminate\Support\Facades\Log::shouldHaveReceived('info')->with(
+        $emitter->shouldHaveReceived('emit')->with('info',
             'Realtime gateway signal fanout completed.',
             \Mockery::on(fn ($context) => $context['request_id'] === 'msg_call_001' && $context['fanout_count'] === 2)
         )->once();
@@ -571,8 +573,10 @@ class RealtimeGatewayTest extends TestCase
     public function test_it_fans_out_browser_published_app_events(): void
     {
         config(['realtime.gateway_timing_enabled' => true]);
-        \Illuminate\Support\Facades\Log::spy();
+        $emitter = \Mockery::mock(\App\Realtime\Observability\RealtimeDiagnosticEmitter::class)->makePartial();
+        $emitter->shouldReceive('emit')->byDefault();
         $gateway = $this->gateway();
+        (new \ReflectionProperty($gateway, 'diagnosticEmitter'))->setValue($gateway, $emitter);
         $token = $this->token([
             'jti' => 'rt_gateway_004b',
             'capabilities' => ['session.connect', 'room.join', 'event.publish'],
@@ -622,19 +626,19 @@ class RealtimeGatewayTest extends TestCase
         $this->assertSame('app.event.publish', $ack['type']);
         $this->assertTrue($ack['payload']['published']);
         $this->assertSame('citizen.call.request', $ack['payload']['event_type']);
-        \Illuminate\Support\Facades\Log::shouldHaveReceived('info')->with(
+        $emitter->shouldHaveReceived('emit')->with('info',
             'Realtime gateway publish fanout completed.',
             \Mockery::on(fn ($context) => $context['request_id'] === 'msg_event_001'
                 && $context['event_type'] === 'citizen.call.request'
                 && $context['fanout_count'] === 2
                 && !str_contains(json_encode($context), 'call_001'))
         )->once();
-        \Illuminate\Support\Facades\Log::shouldHaveReceived('info')->with(
+        $emitter->shouldHaveReceived('emit')->with('info',
             'Realtime gateway ACK sent to connection.',
             \Mockery::on(fn ($context) => $context['request_id'] === 'msg_event_001'
                 && $context['request_type'] === 'app.event.publish')
         )->once();
-        \Illuminate\Support\Facades\Log::shouldHaveReceived('log')->with(
+        $emitter->shouldHaveReceived('emit')->with(
             'info', 'Realtime gateway callback timing.',
             \Mockery::on(fn ($context) => $context['stage'] === 'request'
                 && $context['request_id'] === 'msg_event_001'
@@ -1424,6 +1428,26 @@ class RealtimeGatewayTest extends TestCase
         $this->assertSame('rate-limited', $last['payload']['code']);
     }
 
+    public function test_diagnostic_failure_preserves_callback_exception_and_timing_off(): void
+    {
+        config(['realtime.gateway_timing_enabled' => true, 'realtime.gateway_diagnostic_udp_port' => 0]);
+        $gateway = $this->gateway();
+        $connection = $this->connection($this->token([]));
+        $exception = new \RuntimeException('product exception');
+        $method = new \ReflectionMethod($gateway, 'measureCallback');
+        try {
+            $method->invoke($gateway, 'test', $connection, fn () => throw $exception);
+            $this->fail('Expected product exception');
+        } catch (\RuntimeException $actual) { $this->assertSame($exception, $actual); }
+        $emitter = (new \ReflectionProperty($gateway, 'diagnosticEmitter'))->getValue($gateway);
+        $this->assertSame(1, $emitter->stats()['drops']['unavailable']);
+        config(['realtime.gateway_timing_enabled' => false]);
+        $gateway = $this->gateway();
+        $this->assertSame('result', $method->invoke($gateway, 'test', $connection, fn () => 'result'));
+        $emitter = (new \ReflectionProperty($gateway, 'diagnosticEmitter'))->getValue($gateway);
+        $this->assertSame(0, $emitter->stats()['attempted']);
+    }
+
     public function test_auth_and_call_signaling_remain_responsive_while_telemetry_worker_waits(): void
     {
         foreach (['slow', 'timeout'] as $mode) {
@@ -1436,12 +1460,15 @@ class RealtimeGatewayTest extends TestCase
                 $pipes, base_path(), null, ['create_no_window' => true]);
             $this->assertIsResource($process);
             fclose($pipes[0]);
+            $completed = false;
+            $lastStatus = null;
             try {
                 $deadline = microtime(true) + 5;
-                while (! is_file($marker) && proc_get_status($process)['running'] && microtime(true) < $deadline) {
+                while (! is_file($marker) && ($lastStatus = proc_get_status($process))['running'] && microtime(true) < $deadline) {
                     usleep(10000);
                 }
-                $this->assertFileExists($marker, file_get_contents($directory.'/stderr'));
+                $this->assertFileExists($marker, 'Worker fixture readiness failed; gateway responsiveness UNEXERCISED. Evidence retained at '.$directory.'; status='.json_encode($lastStatus).'; stages='.(is_file($directory.'/startup.jsonl') ? file_get_contents($directory.'/startup.jsonl') : 'none').'; stderr='.substr(file_get_contents($directory.'/stderr'), 0, 8192));
+                $deadline = microtime(true); // Gateway clock begins only after verified sending readiness.
                 $gateway = $this->gateway();
                 $token = $this->token([
                     'jti' => 'rt_telemetry_'.$mode,
@@ -1490,12 +1517,16 @@ class RealtimeGatewayTest extends TestCase
                 $entries = array_map(fn ($path) => json_decode(file_get_contents($path), true), glob($directory.'/*.json'));
                 $this->assertSame([], array_values(array_filter($entries,
                     fn ($entry) => ($entry['payload']['worker_id'] ?? '') === 'regression-worker')));
+                $completed = true;
             } finally {
-                if (proc_get_status($process)['running']) {
+                $status = proc_get_status($process);
+                $terminated = $status['running'];
+                if ($terminated) {
                     proc_terminate($process);
                 }
-                proc_close($process);
-                File::deleteDirectory($directory);
+                $exit = proc_close($process);
+                file_put_contents($directory.'/result.json', json_encode(['status_before_cleanup' => $status, 'last_startup_status' => $lastStatus, 'forced_termination' => $terminated, 'close_exit' => $exit, 'marker_present' => is_file($marker), 'cleanup_at' => microtime(true), 'completed' => $completed], JSON_THROW_ON_ERROR));
+                if ($completed) { File::deleteDirectory($directory); }
             }
         }
     }
