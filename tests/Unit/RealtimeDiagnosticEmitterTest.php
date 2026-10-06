@@ -39,7 +39,7 @@ class RealtimeDiagnosticEmitterTest extends TestCase
     public function test_byte_budget_and_oversize_drop_whole_records(): void
     {
         $emitter = new RealtimeDiagnosticEmitter(true, 0);
-        (new \ReflectionProperty($emitter, 'eligible_attempted_send_bytes'))->setValue($emitter, 4194300);
+        (new \ReflectionProperty($emitter, 'eligibleAttemptedSendBytes'))->setValue($emitter, 4194300);
         $emitter->emit('info', 'test', []);
         $this->assertSame(1, $emitter->stats()['drops']['cap']);
         $this->assertSame(4194300, $emitter->stats()['eligible_attempted_send_bytes']);
