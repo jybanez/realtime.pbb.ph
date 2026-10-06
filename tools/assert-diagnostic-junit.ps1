@@ -16,6 +16,25 @@ try {
     $taskDocument.Load($taskReader)
 } finally { $taskReader.Dispose() }
 if ($taskDocument.DocumentElement.Name -notin @('testsuites','testsuite')) { throw 'JUnit root invalid' }
+if ($taskDocument.SelectNodes('//*[namespace-uri() != ""]').Count -ne 0) { throw 'Unsupported JUnit namespace' }
+if ($taskDocument.SelectNodes('//testcase/testcase|//testcase/testsuites|//testcase/testsuite').Count -ne 0) { throw 'Nested testcase structure invalid' }
+foreach ($taskSuite in $taskDocument.SelectNodes('//testsuite|/testsuites')) {
+    $taskSummaryNames = @('tests','failures','errors','skipped')
+    $taskHasSummary = $taskSuite.Name -eq 'testsuite' -or @($taskSummaryNames | Where-Object { $taskSuite.HasAttribute($_) }).Count -ne 0
+    if (!$taskHasSummary) { continue }
+    foreach ($taskCounter in $taskSummaryNames) {
+        $taskValue = $taskSuite.GetAttribute($taskCounter)
+        if ($taskValue -notmatch '^(0|[1-9][0-9]{0,4})$') { throw 'Missing or invalid JUnit counter' }
+        $taskRequired = if ($taskCounter -eq 'tests') { $taskSuite.SelectNodes('.//testcase').Count } else { 0 }
+        if ([int]$taskValue -ne $taskRequired) { throw 'JUnit summary and testcase counters disagree' }
+    }
+    foreach ($taskOptionalCounter in @('incomplete','warnings')) {
+        if ($taskSuite.HasAttribute($taskOptionalCounter) -and $taskSuite.GetAttribute($taskOptionalCounter) -ne '0') { throw 'JUnit unsuccessful summary counter' }
+    }
+}
+foreach ($taskCaseNode in $taskDocument.SelectNodes('//testcase')) {
+    if ($taskCaseNode.ParentNode.Name -ne 'testsuite') { throw 'Testcase must belong directly to a suite' }
+}
 if ($taskDocument.SelectNodes('//failure|//error|//skipped|//incomplete|//warning').Count -ne 0) { throw 'JUnit contains unsuccessful cases' }
 $taskCases = @($taskDocument.SelectNodes('//testcase'))
 if ($taskCases.Count -ne 14) { throw 'JUnit must contain exactly 14 executed cases' }
