@@ -36,20 +36,29 @@ def main():
     if os.name != 'nt':
         raise SystemExit('Windows only')
     parser = argparse.ArgumentParser()
-    parser.add_argument('--phase', choices=['identity','compile','driver','sequence','php'], required=True)
+    parser.add_argument('--phase', choices=['identity','compile','driver','sequence','php','install'], required=True)
     parser.add_argument('--powershell', required=True)
     parser.add_argument('--evidence', required=True)
     parser.add_argument('--compiled-evidence')
     parser.add_argument('--php')
+    parser.add_argument('--composer')
+    parser.add_argument('--composer-sha256')
     args = parser.parse_args()
-    if args.phase != 'php' and args.php: raise SystemExit('PHP input only allowed for PHP phase')
+    if args.phase not in ('php','install') and args.php: raise SystemExit('PHP input only allowed for PHP/install phase')
+    if args.phase != 'install' and (args.composer or args.composer_sha256): raise SystemExit('Composer input only allowed for install')
     root = Path(__file__).resolve().parent.parent
     evidence = Path(args.evidence).resolve()
     evidence.mkdir(exist_ok=False)
     shell = str(Path(args.powershell).resolve(strict=True))
     source_path = root / 'tools' / 'WindowsDiagnosticJob.cs'
     source_hash = hashlib.sha256(source_path.read_bytes()).hexdigest()
-    if args.phase == 'identity':
+    if args.phase == 'install':
+        if args.compiled_evidence or not args.php or not args.composer or not args.composer_sha256: raise SystemExit('restricted install inputs required')
+        php = str(Path(args.php).resolve(strict=True))
+        composer = str(Path(args.composer).resolve(strict=True))
+        command = [shell, '-NoProfile', '-File', str(root / 'tools/run-diagnostic-dependency-install.ps1'), '-PhpPath', php, '-ComposerPath', composer, '-ComposerSha256', args.composer_sha256, '-EvidenceDirectory', str(evidence / 'install')]
+        seconds = 120
+    elif args.phase == 'identity':
         if args.compiled_evidence: raise SystemExit('identity takes no compile evidence')
         command = [shell, '-NoProfile', '-File', str(root / 'tools/read-diagnostic-runtime-identity.ps1'), '-PythonPath', str(Path(__import__('sys').executable).resolve())]
         seconds = 10

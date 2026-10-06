@@ -9,6 +9,8 @@ if ($taskVendor.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Sha
 if ((Get-Item -LiteralPath $AssemblyPath).Length -gt 4194304 -or (Get-FileHash -LiteralPath $AssemblyPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $AssemblySha256) { throw 'Assembly identity mismatch' }
 Add-Type -Path $AssemblyPath
 New-Item -ItemType Directory -Path $EvidenceDirectory | Out-Null
+& $PhpPath (Join-Path $PSScriptRoot 'assert-offline-diagnostic-config.php')
+if ($LASTEXITCODE -ne 0) { throw 'Offline effective config/origin guard failed: stop' }
 $taskReport = Join-Path $EvidenceDirectory 'junit.xml'
 $taskResult = [WindowsDiagnosticJob]::Run([IO.Path]::GetFullPath($PhpPath), [string[]]@((Join-Path $taskRoot 'vendor/phpunit/phpunit/phpunit'),'--configuration',(Join-Path $taskRoot 'phpunit.diagnostics.xml'),'--log-junit',$taskReport), $taskRoot, 15000)
 . (Join-Path $PSScriptRoot 'save-diagnostic-job-result.ps1')
