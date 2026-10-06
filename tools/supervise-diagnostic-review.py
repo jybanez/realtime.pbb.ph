@@ -95,7 +95,19 @@ def main():
         return value
     handles=[]; job=None; pi=PI(); attributes=None; initialized=False; assigned=False; resumed=False
     stop=threading.Event(); drainers=[]; outputs=[]; read_handles=[]; output_lock=threading.Lock()
-    report={'phase':args.phase,'deadline_seconds':seconds,'root_reaped':False,'tree_cleanup_verified':False,'failure':None,'timeout':False,'root_exit':None}
+    report={'phase':args.phase,'deadline_seconds':seconds,'root_reaped':False,'tree_cleanup_verified':False,'failure':None,'timeout':False,'root_exit':None,'cleanup_failures':[]}
+    failed_closures=set()
+    def cleanup_failure(label):
+        with output_lock:
+            if label not in report['cleanup_failures']: report['cleanup_failures'].append(label)
+    def close_owned(handle, label):
+        # A failed close retains ownership and is never blindly replayed.
+        with output_lock:
+            if handle in failed_closures: return False
+        if kernel.CloseHandle(handle): return True
+        with output_lock: failed_closures.add(handle)
+        cleanup_failure(label)
+        return False
     def drain(handle, state):
         buffer=c.create_string_buffer(256)
         try:
@@ -114,7 +126,7 @@ def main():
         except Exception:
             state['failed']=True
         finally:
-            if not kernel.CloseHandle(handle): state['failed']=True; state['complete']=False
+            if not close_owned(handle,'drain_close'): state['failed']=True; state['complete']=False
     writers=[]
     try:
         job=checked(kernel.CreateJobObjectW(None,None),'job_create')
@@ -146,7 +158,9 @@ def main():
         checked(kernel.CreateProcessW(shell,c.create_unicode_buffer(subprocess.list2cmdline(command)),None,None,True,0x08080004,None,str(root),c.byref(startup),c.byref(pi)),'launch')
         report['pid']=pi.pid
         checked(kernel.AssignProcessToJobObject(job,pi.process),'assignment'); assigned=True
-        for writer in writers: kernel.CloseHandle(writer); handles.remove(writer)
+        for writer in writers:
+            checked(close_owned(writer,'writer_close'),'writer_close')
+            handles.remove(writer)
         writers=[]
         for index,thread in enumerate(drainers):
             # Ownership transfers to drainer only once its thread actually starts.
@@ -164,28 +178,30 @@ def main():
         cleanup=time.monotonic()+1
         if assigned:
             accounting=Accounting()
-            if not kernel.QueryInformationJobObject(job,1,c.byref(accounting),c.sizeof(accounting),None): report['failure']='cleanup_query'
+            if not kernel.QueryInformationJobObject(job,1,c.byref(accounting),c.sizeof(accounting),None): cleanup_failure('cleanup_query')
             elif accounting.active:
                 report['termination_requested']=bool(kernel.TerminateJobObject(job,124))
+                if not report['termination_requested']: cleanup_failure('job_termination')
             while time.monotonic()<cleanup:
-                if not kernel.QueryInformationJobObject(job,1,c.byref(accounting),c.sizeof(accounting),None): break
+                if not kernel.QueryInformationJobObject(job,1,c.byref(accounting),c.sizeof(accounting),None): cleanup_failure('cleanup_query'); break
                 if not accounting.active: report['tree_cleanup_verified']=True; break
                 time.sleep(.01)
         elif pi.process:
-            kernel.TerminateProcess(pi.process,124)
+            if not kernel.TerminateProcess(pi.process,124): cleanup_failure('root_termination')
             while kernel.WaitForSingleObject(pi.process,0)!=0 and time.monotonic()<cleanup: time.sleep(.01)
             report['tree_cleanup_verified']=not resumed and kernel.WaitForSingleObject(pi.process,0)==0
         if pi.process: report['root_reaped']=kernel.WaitForSingleObject(pi.process,0)==0
         for writer in writers:
-            if writer in handles: kernel.CloseHandle(writer); handles.remove(writer)
+            if writer in handles and close_owned(writer,'writer_close'): handles.remove(writer)
         for thread in drainers:
             if thread.ident is not None: thread.join(max(0,cleanup-time.monotonic()))
         stop.set()
         if initialized: kernel.DeleteProcThreadAttributeList(attributes)
-        for handle in handles: kernel.CloseHandle(handle)
-        if job: kernel.CloseHandle(job)
-        if pi.thread: kernel.CloseHandle(pi.thread)
-        if pi.process: kernel.CloseHandle(pi.process)
+        for handle in list(handles):
+            if close_owned(handle,'general_close'): handles.remove(handle)
+        if job and close_owned(job,'job_close'): job=None
+        if pi.thread and close_owned(pi.thread,'thread_close'): pi.thread=None
+        if pi.process and close_owned(pi.process,'process_close'): pi.process=None
     report['drainers_stopped']=all(thread.ident is None or not thread.is_alive() for thread in drainers)
     snapshots=[]
     for name,state in zip(['stdout','stderr'],outputs):
@@ -194,7 +210,10 @@ def main():
             retained=bytes(state['data'])
         (evidence/name).write_bytes(retained)
         report[name]=snapshot; snapshots.append(snapshot)
-    success=report['failure'] is None and not report['timeout'] and report['root_reaped'] and report['tree_cleanup_verified'] and report['drainers_stopped'] and len(snapshots)==2 and all(s['complete'] and not s['failed'] for s in snapshots)
+    with output_lock: report['unresolved_handle_closures']=len(failed_closures)
+    if report['cleanup_failures'] or not report['drainers_stopped']:
+        report['tree_cleanup_verified']=False
+    success=report['failure'] is None and not report['cleanup_failures'] and not report['timeout'] and report['root_reaped'] and report['tree_cleanup_verified'] and report['drainers_stopped'] and len(snapshots)==2 and all(s['complete'] and not s['failed'] for s in snapshots)
     report['exit']=report['root_exit'] if success and report['root_exit'] is not None else 124
     if args.phase == 'compile' and report['exit'] == 0:
         try:
