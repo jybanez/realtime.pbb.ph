@@ -2,6 +2,10 @@
 
 namespace Tests\Unit;
 
+use App\Realtime\Observability\RealtimeMaestroTelemetryClient;
+use App\Realtime\Observability\RealtimeProcessTelemetry;
+use App\Realtime\Observability\RealtimeTelemetrySpool;
+use App\Realtime\Settings\RealtimeRuntimeSettings;
 use App\Models\RealtimeMediaChunk;
 use App\Realtime\Media\RealtimeMediaChunkDispatcher;
 use App\Realtime\Media\RealtimeMediaChunkForwarder;
@@ -1378,6 +1382,82 @@ class RealtimeGatewayTest extends TestCase
 
         $this->assertSame('error', $last['phase']);
         $this->assertSame('rate-limited', $last['payload']['code']);
+    }
+
+    public function test_auth_and_call_signaling_remain_responsive_while_telemetry_worker_waits(): void
+    {
+        foreach (['slow', 'timeout'] as $mode) {
+            $directory = storage_path('framework/testing/telemetry-gateway-'.bin2hex(random_bytes(5)));
+            $spool = new RealtimeTelemetrySpool($directory);
+            $spool->enqueue('heartbeat', ['worker_id' => 'regression-worker']);
+            $marker = $directory.'/sending';
+            $process = proc_open([PHP_BINARY, base_path('tests/fixtures/slow-telemetry-worker.php'), $directory, $marker, $mode],
+                [0 => ['pipe', 'r'], 1 => ['file', $directory.'/stdout', 'w'], 2 => ['file', $directory.'/stderr', 'w']],
+                $pipes, base_path(), null, ['create_no_window' => true]);
+            $this->assertIsResource($process);
+            fclose($pipes[0]);
+            try {
+                $deadline = microtime(true) + 5;
+                while (! is_file($marker) && proc_get_status($process)['running'] && microtime(true) < $deadline) {
+                    usleep(10000);
+                }
+                $this->assertFileExists($marker, file_get_contents($directory.'/stderr'));
+                $gateway = $this->gateway();
+                $token = $this->token([
+                    'jti' => 'rt_telemetry_'.$mode,
+                    'capabilities' => ['session.connect', 'room.join', 'call.signal'],
+                    'allowed_rooms' => ['call.session.telemetry'],
+                ]);
+                $publisher = $this->connection($token);
+                $subscriber = $this->connection($token);
+                $started = microtime(true);
+                $settings = new RealtimeRuntimeSettings;
+                config([
+                    'realtime.maestro_telemetry.enabled' => true,
+                    'realtime.maestro_telemetry.base_url' => 'https://maestro.test',
+                    'realtime.maestro_telemetry.token' => 'regression-secret',
+                ]);
+                $producer = new RealtimeMaestroTelemetryClient($settings);
+                $producer->useSpool($spool);
+                Http::fake(fn () => throw new \RuntimeException('Gateway must never contact Maestro'));
+                $telemetry = new RealtimeProcessTelemetry($producer,
+                    'realtime:serve', 'websocket-gateway', '127.0.0.1', 8080);
+                $telemetry->start();
+                $telemetry->heartbeat();
+                $gateway->onOpen($publisher);
+                $gateway->onOpen($subscriber);
+                $this->send($gateway, $publisher, 'room.join.request', 'call.session.telemetry', []);
+                $this->send($gateway, $subscriber, 'room.join.request', 'call.session.telemetry', []);
+                $this->send($gateway, $publisher, 'call.signal.publish', 'call.session.telemetry', [
+                    'signal_type' => 'offer', 'sdp' => 'test-sdp',
+                ]);
+                $this->assertLessThan(0.75, microtime(true) - $started, $mode);
+                $this->assertTrue(proc_get_status($process)['running'], 'Telemetry must still be waiting when signaling completes.');
+                $messages = $this->decodedMessages($subscriber);
+                $this->assertSame('session.auth.request', $messages[0]['type']);
+                $this->assertSame('ack', $messages[0]['phase']);
+                $this->assertSame('call.signal.event', $messages[array_key_last($messages)]['type']);
+                Http::assertNothingSent();
+                // Admission is still enforced while telemetry is unavailable.
+                $rejected = $this->connection($this->token(['capabilities' => []]));
+                $gateway->onOpen($rejected);
+                $this->assertTrue($rejected->closed);
+                while (proc_get_status($process)['running'] && microtime(true) < $deadline + 3) {
+                    usleep(10000);
+                }
+                $this->assertFalse(proc_get_status($process)['running']);
+                // A new heartbeat may be queued, but the consumed request is not replayed.
+                $entries = array_map(fn ($path) => json_decode(file_get_contents($path), true), glob($directory.'/*.json'));
+                $this->assertSame([], array_values(array_filter($entries,
+                    fn ($entry) => ($entry['payload']['worker_id'] ?? '') === 'regression-worker')));
+            } finally {
+                if (proc_get_status($process)['running']) {
+                    proc_terminate($process);
+                }
+                proc_close($process);
+                File::deleteDirectory($directory);
+            }
+        }
     }
 
     private function gateway(): RealtimeGateway

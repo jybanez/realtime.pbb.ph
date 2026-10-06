@@ -9,13 +9,23 @@ use Illuminate\Support\Facades\Log;
 
 class RealtimeMaestroTelemetryClient
 {
-    public function __construct(
-        private readonly RealtimeRuntimeSettings $settings,
-    ) {
+    private ?RealtimeTelemetrySpool $spool = null;
+
+    private ?array $producerConfig = null;
+
+    public function useSpool(RealtimeTelemetrySpool $spool): void
+    {
+        // Resolve settings once before the loop starts. Delivery reads current settings.
+        $this->producerConfig = $this->settings->maestroTelemetry();
+        $this->spool = $spool;
     }
 
+    public function __construct(
+        private readonly RealtimeRuntimeSettings $settings,
+    ) {}
+
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function sendHeartbeat(array $payload): void
     {
@@ -23,7 +33,7 @@ class RealtimeMaestroTelemetryClient
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function sendWorkerEvent(array $payload): void
     {
@@ -32,7 +42,7 @@ class RealtimeMaestroTelemetryClient
 
     public function isEnabled(): bool
     {
-        $config = $this->settings->maestroTelemetry();
+        $config = $this->producerConfig ?? $this->settings->maestroTelemetry();
 
         return (bool) ($config['enabled'] ?? false)
             && $this->stringValue($config['base_url'] ?? null) !== null
@@ -42,15 +52,21 @@ class RealtimeMaestroTelemetryClient
 
     public function appCode(): string
     {
-        return (string) ($this->settings->maestroTelemetry()['app_code'] ?? 'realtime');
+        return (string) (($this->producerConfig ?? $this->settings->maestroTelemetry())['app_code'] ?? 'realtime');
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     private function post(string $path, array $payload, string $kind): void
     {
-        if (!$this->isEnabled()) {
+        if (! $this->isEnabled()) {
+            return;
+        }
+
+        if ($this->spool !== null) {
+            $this->spool->enqueue($kind, $payload);
+
             return;
         }
 
@@ -73,8 +89,8 @@ class RealtimeMaestroTelemetryClient
                     $tokenHeader => $token,
                     'Host' => $requestTarget['host_header'],
                 ]))
-                ->connectTimeout((int) ($config['connect_timeout_seconds'] ?? 3))
-                ->timeout((int) ($config['timeout_seconds'] ?? 5))
+                ->connectTimeout(max(1, min(3, (int) ($config['connect_timeout_seconds'] ?? 3))))
+                ->timeout(max(1, min(5, (int) ($config['timeout_seconds'] ?? 5))))
                 ->withOptions([
                     'verify' => $verify,
                     'on_stats' => static function (TransferStats $stats) use (&$handlerStats): void {
@@ -83,7 +99,7 @@ class RealtimeMaestroTelemetryClient
                 ])
                 ->post($url, $payload);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::warning('Realtime Maestro telemetry request failed.', [
                     'kind' => $kind,
                     'url' => $url,
@@ -103,8 +119,8 @@ class RealtimeMaestroTelemetryClient
                 'message' => $e->getMessage(),
                 'exception' => $e::class,
                 'timing' => $this->normalizeHandlerStats($handlerStats),
-                'connect_timeout_seconds' => (int) ($config['connect_timeout_seconds'] ?? 3),
-                'timeout_seconds' => (int) ($config['timeout_seconds'] ?? 5),
+                'connect_timeout_seconds' => max(1, min(3, (int) ($config['connect_timeout_seconds'] ?? 3))),
+                'timeout_seconds' => max(1, min(5, (int) ($config['timeout_seconds'] ?? 5))),
                 'verify_tls' => (bool) ($config['verify_tls'] ?? true),
                 'ca_bundle_configured' => $this->stringValue($config['ca_bundle'] ?? null) !== null,
             ]);
@@ -112,24 +128,24 @@ class RealtimeMaestroTelemetryClient
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      * @return array{url: string, host_header: ?string}
      */
     private function requestTarget(array $config, string $path): array
     {
         $baseUrl = rtrim((string) ($config['base_url'] ?? ''), '/');
 
-        if (!(bool) ($config['local_bypass_enabled'] ?? false)) {
+        if (! (bool) ($config['local_bypass_enabled'] ?? false)) {
             return [
-                'url' => $baseUrl . $path,
+                'url' => $baseUrl.$path,
                 'host_header' => null,
             ];
         }
 
         $host = parse_url($baseUrl, PHP_URL_HOST);
-        if (!is_string($host) || trim($host) !== 'maestro.pbb.ph') {
+        if (! is_string($host) || trim($host) !== 'maestro.pbb.ph') {
             return [
-                'url' => $baseUrl . $path,
+                'url' => $baseUrl.$path,
                 'host_header' => null,
             ];
         }
@@ -138,14 +154,14 @@ class RealtimeMaestroTelemetryClient
         $hostHeader = trim((string) ($config['local_bypass_host'] ?? 'maestro.pbb.ph'));
 
         return [
-            'url' => $bypassBaseUrl . $path,
+            'url' => $bypassBaseUrl.$path,
             'host_header' => $hostHeader !== '' ? $hostHeader : null,
         ];
     }
 
     private function stringValue(mixed $value): ?string
     {
-        if (!is_string($value)) {
+        if (! is_string($value)) {
             return null;
         }
 
@@ -155,7 +171,7 @@ class RealtimeMaestroTelemetryClient
     }
 
     /**
-     * @param array<string, mixed> $stats
+     * @param  array<string, mixed>  $stats
      * @return array<string, mixed>
      */
     private function normalizeHandlerStats(array $stats): array
@@ -192,7 +208,7 @@ class RealtimeMaestroTelemetryClient
 
     private function milliseconds(mixed $seconds): ?float
     {
-        if (!is_numeric($seconds)) {
+        if (! is_numeric($seconds)) {
             return null;
         }
 

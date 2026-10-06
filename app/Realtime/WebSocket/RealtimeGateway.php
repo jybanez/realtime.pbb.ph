@@ -62,6 +62,11 @@ class RealtimeGateway implements MessageComponentInterface
 
     public function onOpen(ConnectionInterface $conn): void
     {
+        $this->measureCallback('socket.open', $conn, fn () => $this->processOpen($conn));
+    }
+
+    private function processOpen(ConnectionInterface $conn): void
+    {
         $this->attachConnection($conn);
 
         $request = $conn->httpRequest ?? null;
@@ -72,7 +77,7 @@ class RealtimeGateway implements MessageComponentInterface
 
         if ($token !== '') {
             try {
-                $claims = $this->tokenValidator->validate($token);
+                $claims = $this->measureCallback('token.validate', $conn, fn () => $this->tokenValidator->validate($token));
 
                 if (!$claims->hasCapability('session.connect')) {
                     $this->metrics->increment('auth.failure');
@@ -97,6 +102,11 @@ class RealtimeGateway implements MessageComponentInterface
     }
 
     public function onMessage(ConnectionInterface $from, $msg): void
+    {
+        $this->measureCallback('socket.message', $from, fn () => $this->processMessage($from, $msg));
+    }
+
+    private function processMessage(ConnectionInterface $from, $msg): void
     {
         if (!$this->connections->contains($from)) {
             $this->attachConnection($from);
@@ -226,7 +236,7 @@ class RealtimeGateway implements MessageComponentInterface
         }
 
         try {
-            $claims = $this->tokenValidator->validate($token);
+            $claims = $this->measureCallback('token.validate', $conn, fn () => $this->tokenValidator->validate($token));
         } catch (RealtimeTokenValidationException $e) {
             $this->metrics->increment('auth.failure');
             $this->telemetry->record('auth.failure', null, errorCount: 1);
@@ -273,7 +283,8 @@ class RealtimeGateway implements MessageComponentInterface
             'user_id' => $claims->userId,
         ]);
 
-        $this->sessionRecorder->recordAuthentication($claims, $state['session_id']);
+        $this->measureCallback('session.persist', $conn,
+            fn () => $this->sessionRecorder->recordAuthentication($claims, $state['session_id']));
 
         $this->sendAck($conn, new RealtimeEnvelope(
             namespace: 'pbb.realtime.v1',
@@ -312,7 +323,7 @@ class RealtimeGateway implements MessageComponentInterface
         $room = $this->requiredString($envelope->room, 'room');
         $claims = $this->claims($conn);
 
-        if (!$this->authorizeRoomJoin($claims, $room)) {
+        if (!$this->measureCallback('room.authorize', $conn, fn () => $this->authorizeRoomJoin($claims, $room))) {
             Log::warning('Realtime room join rejected.', [
                 'service' => $this->serviceName,
                 'reason' => 'room-forbidden',
@@ -378,7 +389,7 @@ class RealtimeGateway implements MessageComponentInterface
             return;
         }
 
-        if (!$this->authorizeRoomJoin($claims, $room)) {
+        if (!$this->measureCallback('room.authorize', $conn, fn () => $this->authorizeRoomJoin($claims, $room))) {
             $this->sendError($conn, 'auth.room-denied', 'Room access denied.', $envelope);
             return;
         }
@@ -410,7 +421,7 @@ class RealtimeGateway implements MessageComponentInterface
             return;
         }
 
-        if (!$this->authorizeRoomJoin($claims, $room)) {
+        if (!$this->measureCallback('room.authorize', $conn, fn () => $this->authorizeRoomJoin($claims, $room))) {
             $this->sendError($conn, 'auth.room-denied', 'Room access denied.', $envelope);
             return;
         }
@@ -518,7 +529,7 @@ class RealtimeGateway implements MessageComponentInterface
             return;
         }
 
-        if (!$this->authorizeRoomJoin($claims, $room)) {
+        if (!$this->measureCallback('room.authorize', $conn, fn () => $this->authorizeRoomJoin($claims, $room))) {
             $this->sendError($conn, 'auth.room-denied', 'Room access denied.', $envelope);
             return;
         }
@@ -712,7 +723,7 @@ class RealtimeGateway implements MessageComponentInterface
         $room = $this->requiredString($envelope->room, 'room');
         $claims = $this->claims($conn);
 
-        if (!$this->authorizeRoomJoin($claims, $room)) {
+        if (!$this->measureCallback('room.authorize', $conn, fn () => $this->authorizeRoomJoin($claims, $room))) {
             $this->sendError($conn, 'auth.room-denied', 'Room access denied.', $envelope);
             return;
         }
@@ -761,7 +772,7 @@ class RealtimeGateway implements MessageComponentInterface
         $room = $this->requiredString($envelope->room, 'room');
         $claims = $this->claims($conn);
 
-        if (!$this->authorizeRoomJoin($claims, $room)) {
+        if (!$this->measureCallback('room.authorize', $conn, fn () => $this->authorizeRoomJoin($claims, $room))) {
             $this->sendError($conn, 'auth.room-denied', 'Room access denied.', $envelope);
             return;
         }
@@ -1549,6 +1560,27 @@ class RealtimeGateway implements MessageComponentInterface
         }
 
         return $pending;
+    }
+
+    private function measureCallback(string $stage, ConnectionInterface $conn, callable $callback): mixed
+    {
+        $started = hrtime(true);
+        $receivedAt = (new DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d\TH:i:s.v\Z');
+        try {
+            return $callback();
+        } finally {
+            $elapsedMs = (hrtime(true) - $started) / 1000000;
+            if ($elapsedMs >= 1000 || (bool) config('realtime.gateway_timing_enabled', false)) {
+                Log::log($elapsedMs >= 1000 ? 'warning' : 'info', 'Realtime gateway callback timing.', [
+                    'pid' => getmypid(),
+                    'connection_id' => spl_object_hash($conn),
+                    'session_id' => $this->connections->contains($conn) ? $this->sessionId($conn) : null,
+                    'stage' => $stage,
+                    'received_at' => $receivedAt,
+                    'elapsed_ms' => round($elapsedMs, 3),
+                ]);
+            }
+        }
     }
 
     private function requiredString(mixed $value, string $field): string
