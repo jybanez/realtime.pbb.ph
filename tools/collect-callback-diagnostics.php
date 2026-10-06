@@ -40,11 +40,12 @@ try {
         $line = $data.PHP_EOL;
         if ($stats['written_bytes'] + strlen($line) > 4194304) { ++$stats['rejected']; $stats['terminal_reason'] = 'output_budget'; break; }
         $written = fwrite($file, $line);
-        $stats['written_bytes'] += $written === false ? 0 : $written;
-        if ($written !== strlen($line)) {
+        $writeResult = \App\Realtime\Observability\RealtimeDiagnosticWriteResult::account($written, strlen($line));
+        $stats['written_bytes'] += $writeResult['bytes'];
+        if (!$writeResult['complete']) {
             ++$stats['write_failures'];
-            if ($written !== false && $written > 0) { ++$stats['partial_records']; }
-            $stats['terminal_reason'] = 'short_or_failed_write'; break;
+            if ($writeResult['partial']) { ++$stats['partial_records']; }
+            $stats['terminal_reason'] = $writeResult['terminal_reason']; break;
         }
         ++$stats['accepted'];
     }
