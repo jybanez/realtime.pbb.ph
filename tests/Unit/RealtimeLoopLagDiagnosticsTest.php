@@ -31,4 +31,11 @@ class RealtimeLoopLagDiagnosticsTest extends TestCase
         Log::shouldHaveReceived('warning')->with('Realtime event loop delayed.', ['pid' => getmypid(), 'lag_ms' => 1250.0])->once();
         $this->assertSame(0, $emitter->stats()['attempted']);
     }
+
+    public function test_tracing_warning_has_occurrence_time_and_fixed_stage(): void
+    {
+        $emitter = \Mockery::mock(RealtimeDiagnosticEmitter::class);
+        $emitter->shouldReceive('emit')->once()->with('warning', 'Realtime event loop delayed.', \Mockery::on(fn ($context) => $context['stage'] === 'event.loop.lag' && preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/', $context['observed_at']) === 1));
+        (new RealtimeLoopLagDiagnostics(true, $emitter))->observe(1500);
+    }
 }

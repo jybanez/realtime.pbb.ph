@@ -19,6 +19,8 @@ class RealtimeLoopLagDiagnostics
         if ($this->tracing) {
             $this->emitter->emit('warning', 'Realtime event loop delayed.', [
                 'pid' => getmypid(), 'lag_ms' => round($lagMs, 3), 'warning_count' => $this->warningCount,
+                'stage' => 'event.loop.lag',
+                'observed_at' => (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d\TH:i:s.v\Z'),
             ]);
         } else {
             Log::warning('Realtime event loop delayed.', ['pid' => getmypid(), 'lag_ms' => round($lagMs, 3)]);
