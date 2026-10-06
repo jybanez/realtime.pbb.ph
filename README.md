@@ -48,6 +48,14 @@ Start the gateway with:
 php artisan realtime:serve
 ```
 
+Run Maestro telemetry delivery in a separate managed process when telemetry is enabled:
+
+```bash
+php artisan realtime:dispatch-telemetry
+```
+
+The gateway writes bounded best-effort local snapshots and never sends Maestro HTTP on its event loop. See [telemetry latency and service handoff](docs/pbb-realtime-telemetry-latency-handoff.md) for delivery limits, diagnostics, restart requirements, and remaining blocking dependencies.
+
 By default it binds using the values in `config/realtime.php` and exposes the Ratchet route:
 
 ```text
