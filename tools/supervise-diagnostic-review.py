@@ -36,7 +36,7 @@ def main():
     if os.name != 'nt':
         raise SystemExit('Windows only')
     parser = argparse.ArgumentParser()
-    parser.add_argument('--phase', choices=['compile','driver'], required=True)
+    parser.add_argument('--phase', choices=['compile','driver','sequence'], required=True)
     parser.add_argument('--powershell', required=True)
     parser.add_argument('--evidence', required=True)
     parser.add_argument('--compiled-evidence')
@@ -54,7 +54,7 @@ def main():
         destination = str(assembly).replace("'", "''")
         command = [shell, '-NoProfile', '-Command', "$ErrorActionPreference='Stop'; Add-Type -Path '" + source + "' -OutputAssembly '" + destination + "' -OutputType Library"]
         seconds = 30
-    else:
+    elif args.phase == 'driver':
         if not args.compiled_evidence: raise SystemExit('verified compile evidence required')
         prior = Path(args.compiled_evidence).resolve(strict=True)
         manifest_path = prior / 'assembly.json'
@@ -66,6 +66,11 @@ def main():
         if manifest != {'source_sha256':source_hash,'assembly_sha256':assembly_hash,'powershell':shell}: raise SystemExit('compile identity mismatch')
         command = [shell, '-NoProfile', '-File', str(root / 'tests/fixtures/review-diagnostic-job-regressions.ps1'), '-EvidenceDirectory', str(evidence / 'cases'), '-AssemblyPath', str(assembly), '-AssemblySha256', assembly_hash, '-SourceSha256', source_hash]
         seconds = 20
+    else:
+        if args.compiled_evidence: raise SystemExit('sequence creates its own compile evidence')
+        command = [shell, '-NoProfile', '-File', str(root / 'tools/run-diagnostic-review-sequence.ps1'), '-PythonPath', str(Path(__import__('sys').executable).resolve()), '-PowerShellPath', shell, '-EvidenceDirectory', str(evidence / 'phases')]
+        # Aggregate containment includes both nested phases; no extension on timeout.
+        seconds = 51
     kernel = c.WinDLL('kernel32', use_last_error=True)
     signatures = {
         'CreateJobObjectW': (w.HANDLE, [c.c_void_p,w.LPCWSTR]),

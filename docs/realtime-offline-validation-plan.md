@@ -1,5 +1,11 @@
 # Offline validation sequencing proposal
 
+## Consolidated owner control responding to 7989
+
+Use one reviewed `--phase sequence` entry point, rather than manual compile/driver commands below: `C:/Python312/python.exe tools/supervise-diagnostic-review.py --phase sequence --powershell 'C:/Program Files/PowerShell/7/pwsh.exe' --evidence EVIDENCE_SEQUENCE`. Its independent Python Windows Job contains the sequencing PowerShell root and both nested Python/PowerShell phase trees before resume. The sequencing child stops unless compile exit and persisted outcome both confirm successful root/tree/output cleanup; the driver still independently checks the assembly/source manifest. Distinct private paths are `phases/compile` and `phases/driver` under a new aggregate evidence directory. Nested Job compatibility is UNRUN and remains an explicit review/validation prerequisite.
+
+The aggregate child ceiling is 51 seconds plus one shared outer cleanup second, preserving a modeled 52-second aggregate containment ceiling. Both nested phase startup, compiler/driver time, nested cleanup and sequencing overhead count within those 51 seconds, so individual 30/20-second maxima plus their cleanup/overhead cannot all be exhausted and still pass. Aggregate timeout terminates the contained tree and stops; never extend or automatically retry. Parent startup/hash work, OS/native API latency and final evidence writes remain outside the deadline and are not claimed to have a hard wall-clock bound. Existing paragraphs describing the separate 52-second sum are descriptive budgets, superseded by this concrete aggregate gate. Runtime hashes/versions/architecture remain unverified; this source preparation does not release the execution hold or authorize identity probes.
+
 Prepared in response to timeline 7985. This is source preparation, not permission to execute. Realtime Developer accepts the proposed sole executable-owner role; Hotline Developer reviews artifacts and the plan read-only, and Alfred coordinates explicit release of the existing execution hold. No parallel checks, live collectors, application calls, restarts, or deployment are included.
 
 ## Independent outer review first
