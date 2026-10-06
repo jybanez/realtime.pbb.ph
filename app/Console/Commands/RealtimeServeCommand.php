@@ -113,11 +113,16 @@ class RealtimeServeCommand extends Command
         });
         $this->logBootStage('boot.shutdown_handler.registered');
 
-        $app = new RatchetApp($publicHost, $port, $bindAddress, $loop);
+        $transportObserver = (bool) config('realtime.transport_observer_enabled', false)
+            ? new \App\Realtime\Observability\RealtimeTransportObserver((int) config('realtime.transport_observer_udp_port', 9997)) : null;
+        $app = $transportObserver
+            ? new \App\Realtime\Observability\RealtimeObservedRatchetApp($publicHost, $port, $bindAddress, $loop)
+            : new RatchetApp($publicHost, $port, $bindAddress, $loop);
+        if ($transportObserver) { $app->observeTransport($transportObserver); }
         $this->logBootStage('boot.ratchet_app.ready');
         $app->route(
             '/realtime',
-            $gateway,
+            $transportObserver ? new \App\Realtime\Observability\RealtimeTransportComponent($gateway, $transportObserver, true) : $gateway,
             ['*']
         );
         $this->logBootStage('boot.websocket_route.registered', [

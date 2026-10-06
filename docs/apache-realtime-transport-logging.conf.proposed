@@ -1,0 +1,7 @@
+# REVIEW ONLY. Include inside BOTH existing realtime.pbb.ph VirtualHost blocks.
+# This changes no proxy/routing/authentication directive. Never load globally.
+# Missing/invalid UUID becomes '-'; never log query text or request line.
+SetEnvIf Request_URI "^/realtime$" rt_transport_path
+SetEnvIfExpr "%{QUERY_STRING} !~ m#(?:^|&)diag_attempt=[^&]*(?:&[^&]*)*&diag_attempt=# && %{QUERY_STRING} =~ m#(?:^|&)diag_attempt=([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})(?:&|$)#" rt_attempt=$1
+LogFormat "begin_us=%{begin:usec}t pid=%P path=%U status=%>s elapsed_us=%D attempt=%{rt_attempt}e" rt_transport
+CustomLog "${SRVROOT}/logs/realtime-transport.log" rt_transport env=rt_transport_path

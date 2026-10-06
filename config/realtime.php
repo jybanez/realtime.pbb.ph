@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'transport_observer_enabled' => (bool) env('REALTIME_TRANSPORT_OBSERVER_ENABLED', false),
+    'transport_observer_udp_port' => (int) env('REALTIME_TRANSPORT_OBSERVER_UDP_PORT', 9997),
     'service_name' => env('REALTIME_SERVICE_NAME', env('APP_NAME', 'PBB Realtime')),
     'telemetry_spool_path' => storage_path('app/realtime-telemetry'),
     'telemetry_spool_slots' => 128,
