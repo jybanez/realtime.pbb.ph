@@ -17,5 +17,12 @@
         <env name="MAIL_MAILER" value="array" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>
         <env name="SESSION_DRIVER" value="array" force="true"/>
+        <env name="APP_KEY" value="0123456789abcdef0123456789abcdef" force="true"/>
+        <env name="REALTIME_GATEWAY_TIMING_ENABLED" value="false" force="true"/>
+        <env name="REALTIME_EVENT_PUBLISH_TRACE" value="false" force="true"/>
+        <env name="REALTIME_TRANSPORT_OBSERVER_ENABLED" value="false" force="true"/>
+        <env name="REALTIME_EMBEDDED_MEDIA_CHUNK_DISPATCH_ENABLED" value="false" force="true"/>
+        <env name="MAESTRO_TELEMETRY_ENABLED" value="false" force="true"/>
+        <env name="MAESTRO_TELEMETRY_LOCAL_BYPASS_ENABLED" value="false" force="true"/>
     </php>
 </phpunit>
