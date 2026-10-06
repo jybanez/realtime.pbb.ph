@@ -170,6 +170,7 @@ def main():
         if job: kernel.CloseHandle(job)
         if pi.thread: kernel.CloseHandle(pi.thread)
         if pi.process: kernel.CloseHandle(pi.process)
+    report['drainers_stopped']=all(thread.ident is None or not thread.is_alive() for thread in drainers)
     snapshots=[]
     for name,state in zip(['stdout','stderr'],outputs):
         with output_lock:
@@ -177,7 +178,7 @@ def main():
             retained=bytes(state['data'])
         (evidence/name).write_bytes(retained)
         report[name]=snapshot; snapshots.append(snapshot)
-    success=report['failure'] is None and not report['timeout'] and report['root_reaped'] and report['tree_cleanup_verified'] and len(snapshots)==2 and all(s['complete'] and not s['failed'] for s in snapshots)
+    success=report['failure'] is None and not report['timeout'] and report['root_reaped'] and report['tree_cleanup_verified'] and report['drainers_stopped'] and len(snapshots)==2 and all(s['complete'] and not s['failed'] for s in snapshots)
     report['exit']=report['root_exit'] if success and report['root_exit'] is not None else 124
     (evidence/'outer.json').write_text(json.dumps(report),encoding='utf-8')
     return report['exit']
