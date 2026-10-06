@@ -36,7 +36,7 @@ def main():
     if os.name != 'nt':
         raise SystemExit('Windows only')
     parser = argparse.ArgumentParser()
-    parser.add_argument('--phase', choices=['identity','compile','driver','sequence','php','install'], required=True)
+    parser.add_argument('--phase', choices=['identity','compile','driver','sequence','php','install','php-identity'], required=True)
     parser.add_argument('--powershell', required=True)
     parser.add_argument('--evidence', required=True)
     parser.add_argument('--compiled-evidence')
@@ -44,15 +44,21 @@ def main():
     parser.add_argument('--composer')
     parser.add_argument('--composer-sha256')
     args = parser.parse_args()
-    if args.phase not in ('php','install') and args.php: raise SystemExit('PHP input only allowed for PHP/install phase')
-    if args.phase != 'install' and (args.composer or args.composer_sha256): raise SystemExit('Composer input only allowed for install')
+    if args.phase not in ('php','install','php-identity') and args.php: raise SystemExit('PHP input outside approved scope')
+    if args.phase not in ('install','php-identity') and args.composer: raise SystemExit('Composer input outside approved scope')
+    if args.phase != 'install' and args.composer_sha256: raise SystemExit('Composer reference digest only for install')
     root = Path(__file__).resolve().parent.parent
     evidence = Path(args.evidence).resolve()
     evidence.mkdir(exist_ok=False)
     shell = str(Path(args.powershell).resolve(strict=True))
     source_path = root / 'tools' / 'WindowsDiagnosticJob.cs'
     source_hash = hashlib.sha256(source_path.read_bytes()).hexdigest()
-    if args.phase == 'install':
+    if args.phase == 'php-identity':
+        if args.compiled_evidence or not args.php or not args.composer: raise SystemExit('restricted PHP/Composer identity inputs required')
+        php=str(Path(args.php).resolve(strict=True)); composer=str(Path(args.composer).resolve(strict=True))
+        command=[shell,'-NoProfile','-File',str(root/'tools/read-diagnostic-php-composer-identity.ps1'),'-PhpPath',php,'-ComposerPath',composer]
+        seconds=10
+    elif args.phase == 'install':
         if args.compiled_evidence or not args.php or not args.composer or not args.composer_sha256: raise SystemExit('restricted install inputs required')
         php = str(Path(args.php).resolve(strict=True))
         composer = str(Path(args.composer).resolve(strict=True))
