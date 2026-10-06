@@ -23,7 +23,7 @@ class RealtimeDiagnosticEmitterTest extends TestCase
         $this->assertSame(4096, $stats['attempted']);
         $this->assertSame(4096, $stats['drops']['unavailable']);
         $this->assertSame(4, $stats['drops']['cap']);
-        $this->assertLessThanOrEqual(4194304, $stats['bytes']);
+        $this->assertLessThanOrEqual(4194304, $stats['eligible_attempted_send_bytes']);
     }
 
     public function test_expiry_and_encoding_failure_are_isolated(): void
@@ -39,15 +39,15 @@ class RealtimeDiagnosticEmitterTest extends TestCase
     public function test_byte_budget_and_oversize_drop_whole_records(): void
     {
         $emitter = new RealtimeDiagnosticEmitter(true, 0);
-        (new \ReflectionProperty($emitter, 'bytes'))->setValue($emitter, 4194300);
+        (new \ReflectionProperty($emitter, 'eligible_attempted_send_bytes'))->setValue($emitter, 4194300);
         $emitter->emit('info', 'test', []);
         $this->assertSame(1, $emitter->stats()['drops']['cap']);
-        $this->assertSame(4194300, $emitter->stats()['bytes']);
+        $this->assertSame(4194300, $emitter->stats()['eligible_attempted_send_bytes']);
         $emitter = new RealtimeDiagnosticEmitter(true, 0);
         $context = array_fill_keys(['connection_id', 'session_id', 'stage', 'received_at', 'observed_at', 'request_id', 'request_type', 'room', 'event_type', 'signal_type', 'correlation_id'], str_repeat('x', 160));
         $emitter->emit('info', str_repeat('x', 160), $context);
         $this->assertSame(1, $emitter->stats()['drops']['oversize']);
-        $this->assertSame(0, $emitter->stats()['bytes']);
+        $this->assertSame(0, $emitter->stats()['eligible_attempted_send_bytes']);
     }
 
     public function test_stalled_receiver_and_private_fields_do_not_enter_output(): void

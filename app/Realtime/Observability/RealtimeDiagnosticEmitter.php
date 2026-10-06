@@ -8,7 +8,7 @@ class RealtimeDiagnosticEmitter
     private mixed $socket = null;
     private int $started;
     private int $attempted = 0;
-    private int $bytes = 0;
+    private int $eligibleAttemptedSendBytes = 0;
     private int $sent = 0;
     private array $drops = ['expired' => 0, 'cap' => 0, 'oversize' => 0, 'unavailable' => 0, 'send' => 0, 'encoding' => 0];
 
@@ -34,7 +34,7 @@ class RealtimeDiagnosticEmitter
         if (!$this->enabled) { return; }
         try {
             if (hrtime(true) - $this->started >= 300000000000) { ++$this->drops['expired']; return; }
-            if ($this->attempted >= 4096 || $this->bytes >= 4194304) { ++$this->drops['cap']; return; }
+            if ($this->attempted >= 4096 || $this->eligibleAttemptedSendBytes >= 4194304) { ++$this->drops['cap']; return; }
             ++$this->attempted;
             // Fixed schema, bounded strings and fixed operation maps, never arbitrary nested payloads.
             $safe = [];
@@ -52,8 +52,8 @@ class RealtimeDiagnosticEmitter
             $record = json_encode(['sequence' => $this->attempted, 'level' => $level === 'warning' ? 'warning' : 'info', 'message' => mb_strcut($message, 0, 160, 'UTF-8'), 'context' => $safe], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
             $length = strlen($record);
             if ($length > 2048) { ++$this->drops['oversize']; return; }
-            if ($this->bytes + $length > 4194304) { ++$this->drops['cap']; return; }
-            $this->bytes += $length;
+            if ($this->eligibleAttemptedSendBytes + $length > 4194304) { ++$this->drops['cap']; return; }
+            $this->eligibleAttemptedSendBytes += $length;
             if ($this->socket === null) { ++$this->drops['unavailable']; return; }
             if (@socket_sendto($this->socket, $record, $length, 0, '127.0.0.1', $this->port) === $length) { ++$this->sent; }
             else { ++$this->drops['send']; }
@@ -62,7 +62,7 @@ class RealtimeDiagnosticEmitter
 
     public function stats(): array
     {
-        return ['attempted' => $this->attempted, 'bytes' => $this->bytes, 'sent' => $this->sent, 'drops' => $this->drops];
+        return ['attempted' => $this->attempted, 'eligible_attempted_send_bytes' => $this->eligibleAttemptedSendBytes, 'sent' => $this->sent, 'drops' => $this->drops];
     }
 
     public function __destruct()
