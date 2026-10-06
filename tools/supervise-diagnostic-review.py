@@ -36,11 +36,13 @@ def main():
     if os.name != 'nt':
         raise SystemExit('Windows only')
     parser = argparse.ArgumentParser()
-    parser.add_argument('--phase', choices=['identity','compile','driver','sequence'], required=True)
+    parser.add_argument('--phase', choices=['identity','compile','driver','sequence','php'], required=True)
     parser.add_argument('--powershell', required=True)
     parser.add_argument('--evidence', required=True)
     parser.add_argument('--compiled-evidence')
+    parser.add_argument('--php')
     args = parser.parse_args()
+    if args.phase != 'php' and args.php: raise SystemExit('PHP input only allowed for PHP phase')
     root = Path(__file__).resolve().parent.parent
     evidence = Path(args.evidence).resolve()
     evidence.mkdir(exist_ok=False)
@@ -58,7 +60,7 @@ def main():
         destination = str(assembly).replace("'", "''")
         command = [shell, '-NoProfile', '-Command', "$ErrorActionPreference='Stop'; Add-Type -Path '" + source + "' -OutputAssembly '" + destination + "' -OutputType Library"]
         seconds = 30
-    elif args.phase == 'driver':
+    elif args.phase in ('driver','php'):
         if not args.compiled_evidence: raise SystemExit('verified compile evidence required')
         prior = Path(args.compiled_evidence).resolve(strict=True)
         manifest_path = prior / 'assembly.json'
@@ -73,7 +75,12 @@ def main():
         if manifest != {'source_sha256':source_hash,'assembly_sha256':assembly_hash,'powershell':shell}: raise SystemExit('compile identity mismatch')
         if outcome.get('phase') != 'compile' or outcome.get('exit') != 0 or outcome.get('root_exit') != 0 or outcome.get('source_sha256') != source_hash or outcome.get('assembly_sha256') != assembly_hash or outcome.get('failure') is not None or outcome.get('timeout') is not False or outcome.get('cleanup_failures') != [] or outcome.get('unresolved_handle_closures') != 0 or any(outcome.get(key) is not True for key in ('root_reaped','tree_cleanup_verified','drainers_stopped')) or any(outcome.get(stream,{}).get('complete') is not True or outcome.get(stream,{}).get('failed') is not False for stream in ('stdout','stderr')):
             raise SystemExit('compile outcome unverified or mismatched')
-        command = [shell, '-NoProfile', '-File', str(root / 'tests/fixtures/review-diagnostic-job-regressions.ps1'), '-EvidenceDirectory', str(evidence / 'cases'), '-AssemblyPath', str(assembly), '-AssemblySha256', assembly_hash, '-SourceSha256', source_hash]
+        if args.phase == 'driver':
+            command = [shell, '-NoProfile', '-File', str(root / 'tests/fixtures/review-diagnostic-job-regressions.ps1'), '-EvidenceDirectory', str(evidence / 'cases'), '-AssemblyPath', str(assembly), '-AssemblySha256', assembly_hash, '-SourceSha256', source_hash]
+        else:
+            if not args.php: raise SystemExit('reviewed PHP executable required')
+            php = str(Path(args.php).resolve(strict=True))
+            command = [shell, '-NoProfile', '-File', str(root / 'tools/run-diagnostic-php-stage.ps1'), '-PhpPath', php, '-EvidenceDirectory', str(evidence / 'php'), '-AssemblyPath', str(assembly), '-AssemblySha256', assembly_hash]
         seconds = 20
     else:
         if args.compiled_evidence: raise SystemExit('sequence creates its own compile evidence')
