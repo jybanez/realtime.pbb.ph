@@ -17,19 +17,39 @@ if ($socket === false || !@socket_bind($socket, '127.0.0.1', $port) || !socket_s
     fclose($file); fwrite(STDERR, "Cannot bind nonblocking loopback receiver.\n"); exit(2);
 }
 $deadline = hrtime(true) + $seconds * 1000000000;
-$stats = ['received' => 0, 'accepted' => 0, 'rejected' => 0, 'received_bytes' => 0, 'written_bytes' => 0, 'write_failures' => 0, 'kernel_or_sender_loss' => 'unknown'];
+$captureId = bin2hex(random_bytes(16));
+fwrite(STDOUT, json_encode(['state' => 'receiver.ready', 'capture_id' => $captureId, 'pid' => getmypid(), 'port' => $port], JSON_THROW_ON_ERROR).PHP_EOL);
+$stats = ['capture_id' => $captureId, 'pid' => getmypid(), 'received' => 0, 'accepted' => 0, 'rejected' => 0, 'oversized' => 0, 'receive_errors' => 0, 'idle_polls' => 0, 'received_bytes' => 0, 'written_bytes' => 0, 'write_failures' => 0, 'partial_records' => 0, 'terminal_reason' => 'deadline_or_budget', 'kernel_or_sender_loss' => 'unknown'];
 try {
     while (hrtime(true) < $deadline && $stats['received'] < 4096 && $stats['received_bytes'] < 4194304) {
         $data = ''; $peer = ''; $peerPort = 0;
         $length = @socket_recvfrom($socket, $data, 2049, 0, $peer, $peerPort);
-        if ($length === false) { usleep(10000); continue; }
+        if ($length === false) {
+            $error = socket_last_error($socket);
+            $idleErrors = [];
+            foreach (['SOCKET_EAGAIN', 'SOCKET_EWOULDBLOCK'] as $constant) { if (defined($constant)) { $idleErrors[] = constant($constant); } }
+            socket_clear_error($socket);
+            if (in_array($error, $idleErrors, true)) { ++$stats['idle_polls']; usleep(10000); continue; }
+            ++$stats['receive_errors'];
+            if (defined('SOCKET_EMSGSIZE') && $error === SOCKET_EMSGSIZE) { ++$stats['oversized']; }
+            $stats['terminal_reason'] = 'receive_error'; break;
+        }
         ++$stats['received']; $stats['received_bytes'] += $length;
+        if ($length > 2048) { ++$stats['oversized']; ++$stats['rejected']; continue; }
         if ($peer !== '127.0.0.1' || !\App\Realtime\Observability\RealtimeDiagnosticRecord::valid($data)) { ++$stats['rejected']; continue; }
         $line = $data.PHP_EOL;
-        if ($stats['written_bytes'] + strlen($line) > 4194304) { ++$stats['rejected']; break; }
-        if (fwrite($file, $line) !== strlen($line)) { ++$stats['write_failures']; break; }
-        ++$stats['accepted']; $stats['written_bytes'] += strlen($line);
+        if ($stats['written_bytes'] + strlen($line) > 4194304) { ++$stats['rejected']; $stats['terminal_reason'] = 'output_budget'; break; }
+        $written = fwrite($file, $line);
+        $stats['written_bytes'] += $written === false ? 0 : $written;
+        if ($written !== strlen($line)) {
+            ++$stats['write_failures'];
+            if ($written !== false && $written > 0) { ++$stats['partial_records']; }
+            $stats['terminal_reason'] = 'short_or_failed_write'; break;
+        }
+        ++$stats['accepted'];
     }
+} catch (\Throwable) {
+    $stats['terminal_reason'] = 'collector_exception';
 } finally {
     socket_close($socket); fclose($file);
     // Fixed counters only; never echo rejected datagrams or output filenames.

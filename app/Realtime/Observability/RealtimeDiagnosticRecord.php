@@ -18,6 +18,14 @@ class RealtimeDiagnosticRecord
         $context = $record['context'];
         $keys = ['pid', 'connection_id', 'session_id', 'stage', 'received_at', 'observed_at', 'elapsed_ms', 'request_id', 'request_type', 'room', 'event_type', 'signal_type', 'correlation_id', 'span_id', 'parent_span_id', 'measured_child_ms', 'unaccounted_ms', 'sql_count', 'sql_ms', 'sql_max_ms', 'sql_scope', 'fanout_count', 'sql_operations', 'sql_operation_ms', 'lag_ms', 'warning_count'];
         if (array_diff(array_keys($context), $keys) !== [] || !is_int($context['pid'] ?? null)) { return false; }
+        if (isset($context['signal_type']) && (!is_string($context['signal_type']) || RealtimeCallbackDiagnostics::safeSignalType($context['signal_type']) !== $context['signal_type'])) { return false; }
+        if (isset($context['sql_scope']) && $context['sql_scope'] !== 'inclusive') { return false; }
+        foreach (['connection_id', 'session_id', 'stage', 'received_at', 'observed_at', 'request_id', 'request_type', 'room', 'event_type', 'signal_type', 'correlation_id', 'sql_scope'] as $key) {
+            if (isset($context[$key]) && !is_string($context[$key])) { return false; }
+        }
+        foreach (['pid', 'elapsed_ms', 'span_id', 'parent_span_id', 'measured_child_ms', 'unaccounted_ms', 'sql_count', 'sql_ms', 'sql_max_ms', 'fanout_count', 'lag_ms', 'warning_count'] as $key) {
+            if (isset($context[$key]) && !is_int($context[$key]) && !is_float($context[$key])) { return false; }
+        }
         foreach ($context as $key => $value) {
             if (in_array($key, ['sql_operations', 'sql_operation_ms'], true)) {
                 if (!is_array($value) || array_diff(array_keys($value), ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'OTHER']) !== []) { return false; }

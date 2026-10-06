@@ -19,4 +19,15 @@ class RealtimeDiagnosticRecordTest extends TestCase
         $this->assertFalse(RealtimeDiagnosticRecord::valid(str_repeat('x', 2049)));
         $this->assertFalse(RealtimeDiagnosticRecord::valid('{'));
     }
+
+    public function test_signal_enum_and_numeric_field_semantics_are_enforced(): void
+    {
+        $record = ['sequence' => 1, 'level' => 'info', 'message' => 'Realtime gateway callback timing.', 'context' => ['pid' => 123, 'signal_type' => 'hangup', 'sql_scope' => 'inclusive']];
+        $this->assertTrue(RealtimeDiagnosticRecord::valid(json_encode($record)));
+        $record['context']['signal_type'] = 'arbitrary-private-value';
+        $this->assertFalse(RealtimeDiagnosticRecord::valid(json_encode($record)));
+        $record['context']['signal_type'] = 'other';
+        $record['context']['elapsed_ms'] = 'private-value';
+        $this->assertFalse(RealtimeDiagnosticRecord::valid(json_encode($record)));
+    }
 }
