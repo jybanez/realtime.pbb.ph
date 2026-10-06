@@ -1586,7 +1586,8 @@ class RealtimeGateway implements MessageComponentInterface
             'request_type' => $bounded($request->type),
             'room' => $bounded($request->room),
             'event_type' => $request->type === 'app.event.publish' ? $bounded($request->payload['event_type'] ?? null) : null,
-            'signal_type' => $request->type === 'call.signal.publish' ? $bounded($request->payload['signal_type'] ?? null) : null,
+            'signal_type' => $request->type === 'call.signal.publish'
+                ? RealtimeCallbackDiagnostics::safeSignalType($request->payload['signal_type'] ?? null) : null,
             'correlation_id' => $bounded($request->payload['correlation_id'] ?? null),
         ];
     }

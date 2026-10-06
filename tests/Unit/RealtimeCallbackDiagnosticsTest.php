@@ -9,6 +9,14 @@ use PHPUnit\Framework\TestCase;
 
 class RealtimeCallbackDiagnosticsTest extends TestCase
 {
+    public function test_signal_diagnostics_allow_only_known_enum_values(): void
+    {
+        $this->assertSame('hangup', RealtimeCallbackDiagnostics::safeSignalType('hangup'));
+        $this->assertSame('ice-candidate', RealtimeCallbackDiagnostics::safeSignalType('ice-candidate'));
+        $this->assertSame('other', RealtimeCallbackDiagnostics::safeSignalType('private arbitrary payload'));
+        $this->assertSame('other', RealtimeCallbackDiagnostics::safeSignalType(['token' => 'secret']));
+    }
+
     public function test_sql_is_scoped_to_active_nested_callbacks_without_payloads(): void
     {
         $diagnostics = new RealtimeCallbackDiagnostics();
@@ -24,6 +32,7 @@ class RealtimeCallbackDiagnosticsTest extends TestCase
         $this->assertSame(1, $child['sql_count']);
         $this->assertSame(12.5, $parent['sql_ms']);
         $this->assertSame(['SELECT' => 1], $parent['sql_operations']);
+        $this->assertSame(['SELECT' => 12.5], $parent['sql_operation_ms']);
         $this->assertSame(20.0, $parent['measured_child_ms']);
         $this->assertSame(10.0, $parent['unaccounted_ms']);
         $this->assertStringNotContainsString('sensitive-binding', json_encode($parent));
