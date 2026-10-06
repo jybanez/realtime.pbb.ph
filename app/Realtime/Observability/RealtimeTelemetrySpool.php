@@ -8,6 +8,8 @@ use Throwable;
 /** Best-effort, bounded local telemetry. Never contains transport credentials. */
 class RealtimeTelemetrySpool
 {
+    private float $lastConsumptionWarningAt = -INF;
+
     public function __construct(private readonly string $directory, private readonly int $slots = 128) {}
 
     public function enqueue(string $kind, array $payload): void
@@ -63,8 +65,15 @@ class RealtimeTelemetrySpool
                 }
                 $json = is_file($path) ? file_get_contents($path, false, null, 0, 32769) : false;
                 // Consume before network I/O: an uncertain HTTP outcome is never replayed.
-                if (is_file($path)) {
-                    unlink($path);
+                if (! $this->consumeRecord($path)) {
+                    // Retain the unsent snapshot; future drains may consume it safely.
+                    // Never deliver when durable consumption is unconfirmed.
+                    $now = hrtime(true) / 1000000000;
+                    if ($now - $this->lastConsumptionWarningAt >= 30) {
+                        $this->lastConsumptionWarningAt = $now;
+                        Log::warning('Realtime telemetry consumption failed; delivery skipped. Check spool permissions and file sharing.', ['slot' => $slot]);
+                    }
+                    continue;
                 }
             } finally {
                 fclose($lock);
@@ -89,5 +98,11 @@ class RealtimeTelemetrySpool
         }
 
         return $processed;
+    }
+
+    protected function consumeRecord(string $path): bool
+    {
+        // Suppress the filesystem warning; drain emits throttled, actionable feedback.
+        return @unlink($path);
     }
 }

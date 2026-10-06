@@ -106,6 +106,35 @@ class RealtimeTelemetrySpoolTest extends TestCase
         $this->assertSame([], glob($this->directory.'/*.json'));
     }
 
+    public function test_failed_consumption_never_sends_until_deletion_succeeds(): void
+    {
+        Http::fake();
+        \Illuminate\Support\Facades\Log::spy();
+        $spool = new class($this->directory, 1) extends RealtimeTelemetrySpool {
+            public bool $failConsumption = true;
+
+            protected function consumeRecord(string $path): bool
+            {
+                return $this->failConsumption ? false : parent::consumeRecord($path);
+            }
+        };
+        $spool->enqueue('heartbeat', ['worker_id' => 'consume-failure']);
+        $worker = new RealtimeMaestroTelemetryClient(new RealtimeRuntimeSettings());
+        $this->assertSame(0, $spool->drain($worker));
+        $this->assertSame(0, $spool->drain($worker));
+        Http::assertNothingSent();
+        $this->assertFileExists($this->directory.'/0.json');
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('warning')->once()->with(
+            'Realtime telemetry consumption failed; delivery skipped. Check spool permissions and file sharing.', ['slot' => 0]);
+
+        $spool->failConsumption = false;
+        $this->assertSame(1, $spool->drain($worker));
+        Http::assertSentCount(1);
+        $this->assertFileDoesNotExist($this->directory.'/0.json');
+        $this->assertSame(0, $spool->drain($worker));
+        Http::assertSentCount(1);
+    }
+
     public function test_delivery_command_caps_timeouts_and_preserves_tls_and_loopback_auth(): void
     {
         config([
