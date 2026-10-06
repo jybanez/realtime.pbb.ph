@@ -125,6 +125,11 @@ class RealtimeGateway implements MessageComponentInterface
             return;
         }
 
+        $this->measureCallback('request', $from, fn () => $this->processEnvelope($from, $envelope), $this->requestDiagnosticContext($envelope));
+    }
+
+    private function processEnvelope(ConnectionInterface $from, RealtimeEnvelope $envelope): void
+    {
         $rateByteCost = 0;
         if ($envelope->type === 'sandbox.attachment.chunk.publish' && is_string($envelope->payload['chunk_data'] ?? null)) {
             try {
@@ -568,6 +573,7 @@ class RealtimeGateway implements MessageComponentInterface
         }
 
         $fanoutCount = $this->broadcastWithMeta($room, $eventType, $payload, $meta);
+        $this->logRequestDiagnostic('Realtime gateway publish fanout completed.', $conn, $envelope, ['fanout_count' => $fanoutCount]);
         $this->metrics->increment('event.publish');
         $bytesIn = strlen(RealtimeEnvelope::encode([
             'event_type' => $eventType,
@@ -1039,6 +1045,7 @@ class RealtimeGateway implements MessageComponentInterface
             ],
         ));
 
+        $this->logRequestDiagnostic('Realtime gateway ACK sent to connection.', $conn, $request);
         $this->cacheResponse($conn, $request->id, RealtimeEnvelope::encode([
             'namespace' => 'pbb.realtime.v1',
             'phase' => 'ack',
@@ -1562,7 +1569,32 @@ class RealtimeGateway implements MessageComponentInterface
         return $pending;
     }
 
-    private function measureCallback(string $stage, ConnectionInterface $conn, callable $callback): mixed
+    private function requestDiagnosticContext(RealtimeEnvelope $request): array
+    {
+        // Bound client-controlled metadata; never include payload data or credentials.
+        $bounded = fn (mixed $value) => is_string($value) ? substr($value, 0, 160) : null;
+        return [
+            'request_id' => $bounded($request->id),
+            'request_type' => $bounded($request->type),
+            'room' => $bounded($request->room),
+            'event_type' => $request->type === 'app.event.publish' ? $bounded($request->payload['event_type'] ?? null) : null,
+        ];
+    }
+
+    private function logRequestDiagnostic(string $message, ConnectionInterface $conn, RealtimeEnvelope $request, array $extra = []): void
+    {
+        if (!(bool) config('realtime.gateway_timing_enabled', false)) {
+            return;
+        }
+        Log::info($message, array_merge($this->requestDiagnosticContext($request), $extra, [
+            'pid' => getmypid(),
+            'connection_id' => spl_object_hash($conn),
+            'session_id' => $this->sessionId($conn),
+            'observed_at' => (new DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d\TH:i:s.v\Z'),
+        ]));
+    }
+
+    private function measureCallback(string $stage, ConnectionInterface $conn, callable $callback, array $context = []): mixed
     {
         $started = hrtime(true);
         $receivedAt = (new DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d\TH:i:s.v\Z');
@@ -1571,14 +1603,14 @@ class RealtimeGateway implements MessageComponentInterface
         } finally {
             $elapsedMs = (hrtime(true) - $started) / 1000000;
             if ($elapsedMs >= 1000 || (bool) config('realtime.gateway_timing_enabled', false)) {
-                Log::log($elapsedMs >= 1000 ? 'warning' : 'info', 'Realtime gateway callback timing.', [
+                Log::log($elapsedMs >= 1000 ? 'warning' : 'info', 'Realtime gateway callback timing.', array_merge($context, [
                     'pid' => getmypid(),
                     'connection_id' => spl_object_hash($conn),
                     'session_id' => $this->connections->contains($conn) ? $this->sessionId($conn) : null,
                     'stage' => $stage,
                     'received_at' => $receivedAt,
                     'elapsed_ms' => round($elapsedMs, 3),
-                ]);
+                ]));
             }
         }
     }
