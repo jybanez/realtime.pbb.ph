@@ -8,7 +8,9 @@ param(
     [ValidateRange(1,30)][int]$Seconds = 15
 )
 # Preparation only; no invocation by application code. Launch one offline targeted
-# PHPUnit process under a .NET watchdog; Kill(true) includes its fixture descendants.
+# PHPUnit process under a .NET watchdog. Kill(true) attempts descendant termination;
+# root WaitForExit does not prove owned descendants are gone. Until reviewed Job-object
+# ownership/verification is implemented, this preparation always fails closed with124.
 $ErrorActionPreference = 'Stop'
 $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if (!(Test-Path -LiteralPath $PhpPath -PathType Leaf)) { throw 'PHP executable missing' }
@@ -57,7 +59,7 @@ if ($taskOutRead.IsCompletedSuccessfully) {
 if ($taskErrRead.IsCompletedSuccessfully) {
     [IO.File]::WriteAllText((Join-Path $taskEvidence 'stderr'), [string]::new($taskErrBuffer, 0, $taskErrRead.Result))
 }
-@{ mode=$Mode; pid=$taskProcess.Id; started_utc=$taskStarted.ToString('o'); timeout=$taskTimedOut; reaped=$taskReaped; kill_error=$taskKillError; exit=$(if ($taskReaped) {$taskProcess.ExitCode} else {$null}); deadline_seconds=$Seconds; output_limit_chars=8192; stdout_available=$taskOutRead.IsCompletedSuccessfully; stderr_available=$taskErrRead.IsCompletedSuccessfully } |
+@{ mode=$Mode; pid=$taskProcess.Id; started_utc=$taskStarted.ToString('o'); timeout=$taskTimedOut; root_reaped=$taskReaped; tree_cleanup_verified=$false; tree_cleanup_status='unknown'; kill_error=$taskKillError; root_exit=$(if ($taskReaped) {$taskProcess.ExitCode} else {$null}); deadline_seconds=$Seconds; output_limit_chars=8192; stdout_available=$taskOutRead.IsCompletedSuccessfully; stderr_available=$taskErrRead.IsCompletedSuccessfully; stdout_complete=$false; stderr_complete=$false; output_status='partial_or_truncated_unknown' } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $taskEvidence 'supervisor.json')
-if (!$taskReaped -or $taskTimedOut) { exit 124 }
-exit $taskProcess.ExitCode
+# Never allow exit0/root-reaped to certify process-tree cleanup or evidence completeness.
+exit 124
