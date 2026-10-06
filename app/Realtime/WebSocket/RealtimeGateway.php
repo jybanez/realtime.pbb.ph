@@ -60,11 +60,12 @@ class RealtimeGateway implements MessageComponentInterface
         private readonly int $presenceStaleSeconds,
         private readonly int $messageRateLimitPerMinute,
         private readonly int $roomJoinRateLimitPerMinute,
-        private readonly int $maxRoomsPerSession
+        private readonly int $maxRoomsPerSession,
+        ?RealtimeDiagnosticEmitter $diagnosticEmitter = null
     ) {
         $this->connections = new SplObjectStorage();
         $this->callbackDiagnostics = new RealtimeCallbackDiagnostics();
-        $this->diagnosticEmitter = new RealtimeDiagnosticEmitter((bool) config('realtime.gateway_timing_enabled', false), (int) config('realtime.gateway_diagnostic_udp_port', 9998));
+        $this->diagnosticEmitter = $diagnosticEmitter ?? new RealtimeDiagnosticEmitter((bool) config('realtime.gateway_timing_enabled', false), (int) config('realtime.gateway_diagnostic_udp_port', 9998));
         if ((bool) config('realtime.gateway_timing_enabled', false)) {
             DB::listen(fn (\Illuminate\Database\Events\QueryExecuted $query) => $this->callbackDiagnostics->query($query));
         }

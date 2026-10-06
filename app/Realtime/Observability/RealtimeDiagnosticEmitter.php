@@ -38,7 +38,7 @@ class RealtimeDiagnosticEmitter
             ++$this->attempted;
             // Fixed schema, bounded strings and fixed operation maps, never arbitrary nested payloads.
             $safe = [];
-            foreach (['pid', 'connection_id', 'session_id', 'stage', 'received_at', 'observed_at', 'elapsed_ms', 'request_id', 'request_type', 'room', 'event_type', 'signal_type', 'correlation_id', 'span_id', 'parent_span_id', 'measured_child_ms', 'unaccounted_ms', 'sql_count', 'sql_ms', 'sql_max_ms', 'sql_scope', 'fanout_count'] as $key) {
+            foreach (['pid', 'connection_id', 'session_id', 'stage', 'received_at', 'observed_at', 'elapsed_ms', 'request_id', 'request_type', 'room', 'event_type', 'signal_type', 'correlation_id', 'span_id', 'parent_span_id', 'measured_child_ms', 'unaccounted_ms', 'sql_count', 'sql_ms', 'sql_max_ms', 'sql_scope', 'fanout_count', 'lag_ms', 'warning_count'] as $key) {
                 $value = $context[$key] ?? null;
                 $safe[$key] = is_string($value) ? mb_strcut($value, 0, 160, 'UTF-8') : (is_int($value) || is_float($value) || $value === null ? $value : null);
             }
