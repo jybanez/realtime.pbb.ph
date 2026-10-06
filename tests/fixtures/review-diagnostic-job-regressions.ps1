@@ -1,8 +1,11 @@
-param([Parameter(Mandatory=$true)][string]$EvidenceDirectory)
+param([Parameter(Mandatory=$true)][string]$EvidenceDirectory, [Parameter(Mandatory=$true)][string]$AssemblyPath, [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$AssemblySha256, [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$SourceSha256)
 # Prepared fixtures only; no execution before source/dependency/owner review.
 $ErrorActionPreference = 'Stop'
 $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
-Add-Type -Path (Join-Path $taskRoot 'tools/WindowsDiagnosticJob.cs')
+if ((Get-Item -LiteralPath $AssemblyPath).Length -gt 4194304) { throw 'Assembly size cap exceeded' }
+if ((Get-FileHash -LiteralPath $AssemblyPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $AssemblySha256) { throw 'Assembly identity mismatch' }
+if ((Get-FileHash -LiteralPath (Join-Path $taskRoot 'tools/WindowsDiagnosticJob.cs') -Algorithm SHA256).Hash.ToLowerInvariant() -ne $SourceSha256) { throw 'Source identity mismatch' }
+Add-Type -Path $AssemblyPath
 $taskShell = (Get-Process -Id $PID).Path
 if (Test-Path -LiteralPath $EvidenceDirectory) { throw 'New evidence directory required' }
 New-Item -ItemType Directory -Path $EvidenceDirectory | Out-Null

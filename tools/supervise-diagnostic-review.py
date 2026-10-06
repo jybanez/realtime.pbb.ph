@@ -8,6 +8,7 @@ import argparse
 import ctypes as c
 from ctypes import wintypes as w
 import json
+import hashlib
 import os
 from pathlib import Path
 import subprocess
@@ -38,17 +39,32 @@ def main():
     parser.add_argument('--phase', choices=['compile','driver'], required=True)
     parser.add_argument('--powershell', required=True)
     parser.add_argument('--evidence', required=True)
+    parser.add_argument('--compiled-evidence')
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     evidence = Path(args.evidence).resolve()
     evidence.mkdir(exist_ok=False)
     shell = str(Path(args.powershell).resolve(strict=True))
+    source_path = root / 'tools' / 'WindowsDiagnosticJob.cs'
+    source_hash = hashlib.sha256(source_path.read_bytes()).hexdigest()
     if args.phase == 'compile':
-        source = str(root / 'tools' / 'WindowsDiagnosticJob.cs').replace("'", "''")
-        command = [shell, '-NoProfile', '-Command', "$ErrorActionPreference='Stop'; Add-Type -Path '" + source + "'"]
+        if args.compiled_evidence: raise SystemExit('compile takes no prior assembly')
+        source = str(source_path).replace("'", "''")
+        assembly = evidence / 'WindowsDiagnosticJob.dll'
+        destination = str(assembly).replace("'", "''")
+        command = [shell, '-NoProfile', '-Command', "$ErrorActionPreference='Stop'; Add-Type -Path '" + source + "' -OutputAssembly '" + destination + "' -OutputType Library"]
         seconds = 30
     else:
-        command = [shell, '-NoProfile', '-File', str(root / 'tests/fixtures/review-diagnostic-job-regressions.ps1'), '-EvidenceDirectory', str(evidence / 'cases')]
+        if not args.compiled_evidence: raise SystemExit('verified compile evidence required')
+        prior = Path(args.compiled_evidence).resolve(strict=True)
+        manifest_path = prior / 'assembly.json'
+        if manifest_path.stat().st_size > 4096: raise SystemExit('oversized assembly manifest')
+        manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+        assembly = prior / 'WindowsDiagnosticJob.dll'
+        if assembly.stat().st_size > 4194304: raise SystemExit('oversized assembly')
+        assembly_hash = hashlib.sha256(assembly.read_bytes()).hexdigest()
+        if manifest != {'source_sha256':source_hash,'assembly_sha256':assembly_hash,'powershell':shell}: raise SystemExit('compile identity mismatch')
+        command = [shell, '-NoProfile', '-File', str(root / 'tests/fixtures/review-diagnostic-job-regressions.ps1'), '-EvidenceDirectory', str(evidence / 'cases'), '-AssemblyPath', str(assembly), '-AssemblySha256', assembly_hash, '-SourceSha256', source_hash]
         seconds = 20
     kernel = c.WinDLL('kernel32', use_last_error=True)
     signatures = {
@@ -180,6 +196,14 @@ def main():
         report[name]=snapshot; snapshots.append(snapshot)
     success=report['failure'] is None and not report['timeout'] and report['root_reaped'] and report['tree_cleanup_verified'] and report['drainers_stopped'] and len(snapshots)==2 and all(s['complete'] and not s['failed'] for s in snapshots)
     report['exit']=report['root_exit'] if success and report['root_exit'] is not None else 124
+    if args.phase == 'compile' and report['exit'] == 0:
+        try:
+            if not assembly.is_file() or assembly.stat().st_size > 4194304: raise RuntimeError('assembly_missing_or_oversized')
+            if hashlib.sha256(source_path.read_bytes()).hexdigest() != source_hash: raise RuntimeError('source_changed')
+            assembly_hash = hashlib.sha256(assembly.read_bytes()).hexdigest()
+            (evidence/'assembly.json').write_text(json.dumps({'source_sha256':source_hash,'assembly_sha256':assembly_hash,'powershell':shell}),encoding='utf-8')
+        except Exception:
+            report['failure']='assembly_evidence_failed'; report['exit']=124
     (evidence/'outer.json').write_text(json.dumps(report),encoding='utf-8')
     return report['exit']
 
