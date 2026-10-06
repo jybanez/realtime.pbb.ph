@@ -84,6 +84,8 @@ def main():
         if manifest != {'source_sha256':source_hash,'assembly_sha256':assembly_hash,'powershell':shell}: raise SystemExit('compile identity mismatch')
         if outcome.get('phase') != 'compile' or outcome.get('exit') != 0 or outcome.get('root_exit') != 0 or outcome.get('source_sha256') != source_hash or outcome.get('assembly_sha256') != assembly_hash or outcome.get('failure') is not None or outcome.get('timeout') is not False or outcome.get('cleanup_failures') != [] or outcome.get('unresolved_handle_closures') != 0 or any(outcome.get(key) is not True for key in ('root_reaped','tree_cleanup_verified','drainers_stopped')) or any(outcome.get(stream,{}).get('complete') is not True or outcome.get(stream,{}).get('failed') is not False for stream in ('stdout','stderr')):
             raise SystemExit('compile outcome unverified or mismatched')
+        if any(outcome.get(stream,{}).get('truncated') is not False for stream in ('stdout','stderr')):
+            raise SystemExit('compile output truncated or truncation evidence missing')
         if args.phase == 'driver':
             command = [shell, '-NoProfile', '-File', str(root / 'tests/fixtures/review-diagnostic-job-regressions.ps1'), '-EvidenceDirectory', str(evidence / 'cases'), '-AssemblyPath', str(assembly), '-AssemblySha256', assembly_hash, '-SourceSha256', source_hash]
         else:
