@@ -60,10 +60,15 @@ def main():
         manifest_path = prior / 'assembly.json'
         if manifest_path.stat().st_size > 4096: raise SystemExit('oversized assembly manifest')
         manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+        outcome_path = prior / 'outer.json'
+        if outcome_path.stat().st_size > 8192: raise SystemExit('oversized compile outcome')
+        outcome = json.loads(outcome_path.read_text(encoding='utf-8'))
         assembly = prior / 'WindowsDiagnosticJob.dll'
         if assembly.stat().st_size > 4194304: raise SystemExit('oversized assembly')
         assembly_hash = hashlib.sha256(assembly.read_bytes()).hexdigest()
         if manifest != {'source_sha256':source_hash,'assembly_sha256':assembly_hash,'powershell':shell}: raise SystemExit('compile identity mismatch')
+        if outcome.get('phase') != 'compile' or outcome.get('exit') != 0 or outcome.get('root_exit') != 0 or outcome.get('source_sha256') != source_hash or outcome.get('assembly_sha256') != assembly_hash or outcome.get('failure') is not None or outcome.get('timeout') is not False or outcome.get('cleanup_failures') != [] or outcome.get('unresolved_handle_closures') != 0 or any(outcome.get(key) is not True for key in ('root_reaped','tree_cleanup_verified','drainers_stopped')) or any(outcome.get(stream,{}).get('complete') is not True or outcome.get(stream,{}).get('failed') is not False for stream in ('stdout','stderr')):
+            raise SystemExit('compile outcome unverified or mismatched')
         command = [shell, '-NoProfile', '-File', str(root / 'tests/fixtures/review-diagnostic-job-regressions.ps1'), '-EvidenceDirectory', str(evidence / 'cases'), '-AssemblyPath', str(assembly), '-AssemblySha256', assembly_hash, '-SourceSha256', source_hash]
         seconds = 20
     else:
@@ -100,7 +105,7 @@ def main():
         return value
     handles=[]; job=None; pi=PI(); attributes=None; initialized=False; assigned=False; resumed=False
     stop=threading.Event(); drainers=[]; outputs=[]; read_handles=[]; output_lock=threading.Lock()
-    report={'phase':args.phase,'deadline_seconds':seconds,'root_reaped':False,'tree_cleanup_verified':False,'failure':None,'timeout':False,'root_exit':None,'cleanup_failures':[]}
+    report={'phase':args.phase,'source_sha256':source_hash,'deadline_seconds':seconds,'root_reaped':False,'tree_cleanup_verified':False,'failure':None,'timeout':False,'root_exit':None,'cleanup_failures':[]}
     failed_closures=set()
     def cleanup_failure(label):
         with output_lock:
@@ -225,6 +230,7 @@ def main():
             if not assembly.is_file() or assembly.stat().st_size > 4194304: raise RuntimeError('assembly_missing_or_oversized')
             if hashlib.sha256(source_path.read_bytes()).hexdigest() != source_hash: raise RuntimeError('source_changed')
             assembly_hash = hashlib.sha256(assembly.read_bytes()).hexdigest()
+            report['assembly_sha256']=assembly_hash
             (evidence/'assembly.json').write_text(json.dumps({'source_sha256':source_hash,'assembly_sha256':assembly_hash,'powershell':shell}),encoding='utf-8')
         except Exception:
             report['failure']='assembly_evidence_failed'; report['exit']=124
