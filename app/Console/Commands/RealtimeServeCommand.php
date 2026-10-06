@@ -3,6 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Realtime\Observability\RealtimeTelemetrySpool;
+use App\Realtime\Observability\RealtimeDiagnosticEmitter;
+use App\Realtime\Observability\RealtimeLoopLagDiagnostics;
 use Illuminate\Support\Facades\Log;
 use App\Realtime\Auth\RealtimeTokenValidator;
 use App\Realtime\Ingress\RealtimeEventPublishDispatcher;
@@ -76,6 +78,9 @@ class RealtimeServeCommand extends Command
         ));
         $this->logBootStage('boot.starting_banner_printed');
 
+        $diagnosticTracing = (bool) config('realtime.gateway_timing_enabled', false);
+        $diagnosticEmitter = new RealtimeDiagnosticEmitter($diagnosticTracing, (int) config('realtime.gateway_diagnostic_udp_port', 9998));
+        $loopDiagnostics = new RealtimeLoopLagDiagnostics($diagnosticTracing, $diagnosticEmitter);
         $gateway = new RealtimeGateway(
             $tokenValidator,
             $roomPolicy,
@@ -89,7 +94,8 @@ class RealtimeServeCommand extends Command
             (int) config('realtime.presence_stale_seconds', 90),
             (int) config('realtime.message_rate_limit_per_minute', 120),
             (int) config('realtime.room_join_rate_limit_per_minute', 30),
-            (int) config('realtime.max_rooms_per_session', 50)
+            (int) config('realtime.max_rooms_per_session', 50),
+            $diagnosticEmitter
         );
         $this->logBootStage('boot.gateway.ready');
 
@@ -167,27 +173,14 @@ class RealtimeServeCommand extends Command
         ]);
 
         $expectedTick = hrtime(true) + 1000000000;
-        $loop->addPeriodicTimer(1, static function () use (&$expectedTick): void {
+        $loop->addPeriodicTimer(1, static function () use (&$expectedTick, $loopDiagnostics): void {
             $now = hrtime(true);
             $lagMs = max(0, ($now - $expectedTick) / 1000000);
             $expectedTick = $now + 1000000000;
-            if ($lagMs >= 1000) {
-                Log::warning('Realtime event loop delayed.', [
-                    'pid' => getmypid(), 'lag_ms' => round($lagMs, 3),
-                ]);
-            }
+            $loopDiagnostics->observe($lagMs);
         });
 
         $this->logBootStage('boot.event_loop.running');
-        if ((bool) config('realtime.gateway_timing_enabled', false)) {
-            DB::listen(static function (\Illuminate\Database\Events\QueryExecuted $query): void {
-                Log::info('Realtime database query timing.', [
-                    'pid' => getmypid(),
-                    'operation' => strtoupper(strtok(ltrim($query->sql), " \t\r\n") ?: 'unknown'),
-                    'elapsed_ms' => round($query->time, 3),
-                ]);
-            });
-        }
         $app->run();
         $this->logBootStage('boot.event_loop.stopped');
 
