@@ -509,6 +509,8 @@ class RealtimeGatewayTest extends TestCase
 
     public function test_it_emits_call_signal_events(): void
     {
+        config(['realtime.gateway_timing_enabled' => true]);
+        \Illuminate\Support\Facades\Log::spy();
         $gateway = $this->gateway();
         $token = $this->token([
             'jti' => 'rt_gateway_004',
@@ -532,6 +534,7 @@ class RealtimeGatewayTest extends TestCase
             'room' => $room,
             'payload' => [
                 'signal_type' => 'offer',
+                'correlation_id' => 'signal-correlation-001',
                 'target_user_id' => '2048',
                 'sdp' => 'dummy-sdp',
                 'candidate_json' => json_encode(['candidate' => 'candidate:1 1 udp 1 127.0.0.1 999 typ host'], JSON_THROW_ON_ERROR),
@@ -546,6 +549,23 @@ class RealtimeGatewayTest extends TestCase
         $this->assertSame('offer', $messages[2]['payload']['signal_type']);
         $this->assertSame('dummy-sdp', $messages[2]['payload']['sdp']);
         $this->assertSame('video', json_decode($messages[2]['payload']['meta_json'], true, 512, JSON_THROW_ON_ERROR)['mode']);
+        foreach (['signal.authorize', 'signal.fanout', 'signal.metrics', 'signal.usage', 'signal.session.touch', 'ack.send', 'response.cache.write', 'response.cache.lookup'] as $stage) {
+            \Illuminate\Support\Facades\Log::shouldHaveReceived('log')->with(
+                'info', 'Realtime gateway callback timing.',
+                \Mockery::on(fn ($context) => $context['stage'] === $stage
+                    && $context['request_id'] === 'msg_call_001'
+                    && $context['signal_type'] === 'offer'
+                    && $context['correlation_id'] === 'signal-correlation-001'
+                    && $context['parent_span_id'] !== null
+                    && ($stage !== 'signal.usage' || $context['sql_count'] > 0)
+                    && !str_contains(json_encode($context), 'dummy-sdp')
+                    && !str_contains(json_encode($context), 'candidate:1'))
+            )->once();
+        }
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('info')->with(
+            'Realtime gateway signal fanout completed.',
+            \Mockery::on(fn ($context) => $context['request_id'] === 'msg_call_001' && $context['fanout_count'] === 2)
+        )->once();
     }
 
     public function test_it_fans_out_browser_published_app_events(): void

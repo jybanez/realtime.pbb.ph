@@ -11,6 +11,8 @@ use App\Realtime\ProductQuery\RealtimeProductQueryForwarder;
 use App\Realtime\Rooms\RealtimeRoomPolicy;
 use App\Realtime\Sessions\RealtimeSessionRecorder;
 use App\Realtime\Observability\RealtimeMetrics;
+use App\Realtime\Observability\RealtimeCallbackDiagnostics;
+use Illuminate\Support\Facades\DB;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
@@ -26,6 +28,7 @@ class RealtimeGateway implements MessageComponentInterface
     private const BINARY_MEDIA_VERSION = 1;
 
     private SplObjectStorage $connections;
+    private RealtimeCallbackDiagnostics $callbackDiagnostics;
 
     /**
      * @var array<string, array<string, bool>>
@@ -58,6 +61,10 @@ class RealtimeGateway implements MessageComponentInterface
         private readonly int $maxRoomsPerSession
     ) {
         $this->connections = new SplObjectStorage();
+        $this->callbackDiagnostics = new RealtimeCallbackDiagnostics();
+        if ((bool) config('realtime.gateway_timing_enabled', false)) {
+            DB::listen(fn (\Illuminate\Database\Events\QueryExecuted $query) => $this->callbackDiagnostics->query($query));
+        }
     }
 
     public function onOpen(ConnectionInterface $conn): void
@@ -149,8 +156,8 @@ class RealtimeGateway implements MessageComponentInterface
             return;
         }
 
-        if ($this->hasCachedResponse($from, $envelope->id)) {
-            $from->send($this->cachedResponse($from, $envelope->id));
+        if ($this->traceRequestStage('response.cache.lookup', $from, $envelope, fn () => $this->hasCachedResponse($from, $envelope->id))) {
+            $this->traceRequestStage('response.cache.replay', $from, $envelope, fn () => $from->send($this->cachedResponse($from, $envelope->id)));
             return;
         }
 
@@ -681,7 +688,7 @@ class RealtimeGateway implements MessageComponentInterface
             return;
         }
 
-        if (!$this->authorizeRoomJoin($claims, $room) || !str_starts_with($room, 'call.session.')) {
+        if (!$this->traceRequestStage('signal.authorize', $conn, $envelope, fn () => $this->authorizeRoomJoin($claims, $room)) || !str_starts_with($room, 'call.session.')) {
             $this->sendError($conn, 'auth.room-denied', 'Room access denied.', $envelope);
             return;
         }
@@ -710,15 +717,16 @@ class RealtimeGateway implements MessageComponentInterface
             'sent_at' => (new DateTimeImmutable())->format(DATE_ATOM),
         ];
 
-        $fanoutCount = $this->broadcast($room, 'call.signal.event', $event);
-        $this->metrics->increment('call.signal');
-        $this->telemetry->record(
+        $fanoutCount = $this->traceRequestStage('signal.fanout', $conn, $envelope, fn () => $this->broadcast($room, 'call.signal.event', $event));
+        $this->logRequestDiagnostic('Realtime gateway signal fanout completed.', $conn, $envelope, ['fanout_count' => $fanoutCount]);
+        $this->traceRequestStage('signal.metrics', $conn, $envelope, fn () => $this->metrics->increment('call.signal'));
+        $this->traceRequestStage('signal.usage', $conn, $envelope, fn () => $this->telemetry->record(
             'call.signal',
             $claims,
             bytesIn: strlen((string) ($sdp ?? '')) + strlen((string) ($candidateJson ?? '')) + strlen((string) ($metaJson ?? '')) + strlen($signalType),
             bytesOut: $fanoutCount * $this->measureEventBytes('call.signal.event', $room, $event)
-        );
-        $this->sessionRecorder->touch($this->sessionId($conn), 'connected', null, count($this->connectionRooms($conn)));
+        ));
+        $this->traceRequestStage('signal.session.touch', $conn, $envelope, fn () => $this->sessionRecorder->touch($this->sessionId($conn), 'connected', null, count($this->connectionRooms($conn))));
         $this->sendAck($conn, $envelope, [
             'published' => true,
         ]);
@@ -1033,7 +1041,7 @@ class RealtimeGateway implements MessageComponentInterface
 
     private function sendAck(ConnectionInterface $conn, RealtimeEnvelope $request, array $payload): void
     {
-        $this->sendEnvelope($conn, new RealtimeEnvelope(
+        $this->traceRequestStage('ack.send', $conn, $request, fn () => $this->sendEnvelope($conn, new RealtimeEnvelope(
             namespace: 'pbb.realtime.v1',
             phase: 'ack',
             id: $request->id,
@@ -1043,10 +1051,10 @@ class RealtimeGateway implements MessageComponentInterface
             meta: [
                 'service' => $this->serviceName,
             ],
-        ));
+        )));
 
         $this->logRequestDiagnostic('Realtime gateway ACK sent to connection.', $conn, $request);
-        $this->cacheResponse($conn, $request->id, RealtimeEnvelope::encode([
+        $this->traceRequestStage('response.cache.write', $conn, $request, fn () => $this->cacheResponse($conn, $request->id, RealtimeEnvelope::encode([
             'namespace' => 'pbb.realtime.v1',
             'phase' => 'ack',
             'id' => $request->id,
@@ -1056,7 +1064,7 @@ class RealtimeGateway implements MessageComponentInterface
             'meta' => [
                 'service' => $this->serviceName,
             ],
-        ]));
+        ])));
     }
 
     private function sendEvent(ConnectionInterface $conn, string $type, ?string $room, array $payload, array $meta = []): void
@@ -1572,12 +1580,14 @@ class RealtimeGateway implements MessageComponentInterface
     private function requestDiagnosticContext(RealtimeEnvelope $request): array
     {
         // Bound client-controlled metadata; never include payload data or credentials.
-        $bounded = fn (mixed $value) => is_string($value) ? substr($value, 0, 160) : null;
+        $bounded = fn (mixed $value) => is_string($value) ? mb_strcut($value, 0, 160, 'UTF-8') : null;
         return [
             'request_id' => $bounded($request->id),
             'request_type' => $bounded($request->type),
             'room' => $bounded($request->room),
             'event_type' => $request->type === 'app.event.publish' ? $bounded($request->payload['event_type'] ?? null) : null,
+            'signal_type' => $request->type === 'call.signal.publish' ? $bounded($request->payload['signal_type'] ?? null) : null,
+            'correlation_id' => $bounded($request->payload['correlation_id'] ?? null),
         ];
     }
 
@@ -1596,13 +1606,20 @@ class RealtimeGateway implements MessageComponentInterface
 
     private function measureCallback(string $stage, ConnectionInterface $conn, callable $callback, array $context = []): mixed
     {
+        $verbose = (bool) config('realtime.gateway_timing_enabled', false);
+        if ($verbose) {
+            $this->callbackDiagnostics->begin($stage, $context);
+        }
         $started = hrtime(true);
         $receivedAt = (new DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d\TH:i:s.v\Z');
         try {
             return $callback();
         } finally {
             $elapsedMs = (hrtime(true) - $started) / 1000000;
-            if ($elapsedMs >= 1000 || (bool) config('realtime.gateway_timing_enabled', false)) {
+            if ($verbose) {
+                $context = $this->callbackDiagnostics->end($elapsedMs);
+            }
+            if ($elapsedMs >= 1000 || $verbose) {
                 Log::log($elapsedMs >= 1000 ? 'warning' : 'info', 'Realtime gateway callback timing.', array_merge($context, [
                     'pid' => getmypid(),
                     'connection_id' => spl_object_hash($conn),
@@ -1613,6 +1630,13 @@ class RealtimeGateway implements MessageComponentInterface
                 ]));
             }
         }
+    }
+
+    private function traceRequestStage(string $stage, ConnectionInterface $conn, RealtimeEnvelope $request, callable $callback): mixed
+    {
+        return (bool) config('realtime.gateway_timing_enabled', false)
+            ? $this->measureCallback($stage, $conn, $callback, $this->requestDiagnosticContext($request))
+            : $callback();
     }
 
     private function requiredString(mixed $value, string $field): string

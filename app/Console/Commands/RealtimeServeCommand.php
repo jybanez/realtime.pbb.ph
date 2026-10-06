@@ -179,15 +179,6 @@ class RealtimeServeCommand extends Command
         });
 
         $this->logBootStage('boot.event_loop.running');
-        if ((bool) config('realtime.gateway_timing_enabled', false)) {
-            DB::listen(static function (\Illuminate\Database\Events\QueryExecuted $query): void {
-                Log::info('Realtime database query timing.', [
-                    'pid' => getmypid(),
-                    'operation' => strtoupper(strtok(ltrim($query->sql), " \t\r\n") ?: 'unknown'),
-                    'elapsed_ms' => round($query->time, 3),
-                ]);
-            });
-        }
         $app->run();
         $this->logBootStage('boot.event_loop.stopped');
 
