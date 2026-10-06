@@ -20,6 +20,11 @@ foreach ($taskCase in @('natural-child','timeout-tree','large-output')) {
     if ($taskCase -eq 'timeout-tree' -and (!$taskResult.Timeout -or $taskResult.ExitCode -ne 124)) { throw 'Timeout tree outcome failed' }
     if ($taskCase -eq 'large-output' -and ($taskResult.RootExit -ne 0 -or $taskResult.ExitCode -ne 0 -or !$taskResult.Stdout.Truncated -or !$taskResult.Stderr.Truncated -or $taskResult.Stdout.Text.Length -ne 8192 -or $taskResult.Stderr.Text.Length -ne 8192)) { throw 'Bounded drain evidence failed' }
 }
+$taskFailure = [WindowsDiagnosticJob]::Run($taskShell, [string[]]@('-NoProfile','-File',(Join-Path $PSScriptRoot 'diagnostic-job-root.ps1'),'-Case','incomplete-utf8'), $taskRoot, 2000)
+$taskCaseEvidence = Join-Path $EvidenceDirectory 'incomplete-utf8'
+New-Item -ItemType Directory -Path $taskCaseEvidence | Out-Null
+Save-DiagnosticJobResult $taskFailure $taskCaseEvidence 'incomplete-utf8'
+if (!$taskFailure.TreeCleanupVerified -or !$taskFailure.Stdout.Failed -or $taskFailure.Stdout.Complete -or $taskFailure.ExitCode -ne 124) { throw 'Incomplete UTF8 was incorrectly certified: stop all checks' }
 $taskFailure = [WindowsDiagnosticJob]::Run((Join-Path $taskRoot 'nonexistent-review-executable.exe'), [string[]]@(), $taskRoot, 1000)
 $taskCaseEvidence = Join-Path $EvidenceDirectory 'launch-failure'
 New-Item -ItemType Directory -Path $taskCaseEvidence | Out-Null

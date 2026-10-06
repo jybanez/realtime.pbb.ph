@@ -56,7 +56,7 @@ public static class WindowsDiagnosticJob
             try {
                 bool eof=false;
                 using(var stream = new FileStream(new SafeFileHandle(handle, true), FileAccess.Read, 1, false)) {
-                    byte[] bytes=new byte[256]; char[] chunk=new char[512]; var decoder=Encoding.UTF8.GetDecoder();
+                    byte[] bytes=new byte[256]; char[] chunk=new char[512]; var decoder=new UTF8Encoding(false,true).GetDecoder();
                     while(!stop) {
                         uint available;
                         if(!PeekNamedPipe(handle,IntPtr.Zero,0,IntPtr.Zero,out available,IntPtr.Zero)) {
@@ -71,6 +71,15 @@ public static class WindowsDiagnosticJob
                             int keep = Math.Min(count, 8192-retained.Length);
                             retained.Append(chunk, 0, keep);
                             if(keep < count) Truncated = true;
+                        }
+                    }
+                    if(eof && !Failed) {
+                        // Strict EOF flush: incomplete UTF-8 is failed evidence, never silently omitted.
+                        int tail=decoder.GetChars(Array.Empty<byte>(),0,0,chunk,0,true);
+                        lock(gate) {
+                            int keep=Math.Min(tail,8192-retained.Length);
+                            retained.Append(chunk,0,keep);
+                            if(keep<tail) Truncated=true;
                         }
                     }
                 }

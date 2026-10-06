@@ -1,4 +1,10 @@
-param([ValidateSet('natural-child','timeout-tree','large-output')][string]$Case)
+param([ValidateSet('natural-child','timeout-tree','large-output','incomplete-utf8')][string]$Case)
+if ($Case -eq 'incomplete-utf8') {
+    $taskRaw = [Console]::OpenStandardOutput()
+    $taskRaw.Write([byte[]]@(0xE2,0x82),0,2)
+    $taskRaw.Flush()
+    exit 0
+}
 if ($Case -eq 'large-output') {
     [Console]::Out.Write([string]::new('x', 20000))
     [Console]::Error.Write([string]::new('y', 20000))
