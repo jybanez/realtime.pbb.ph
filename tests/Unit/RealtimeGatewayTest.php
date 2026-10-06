@@ -1467,7 +1467,7 @@ class RealtimeGatewayTest extends TestCase
                 while (! is_file($marker) && ($lastStatus = proc_get_status($process))['running'] && microtime(true) < $deadline) {
                     usleep(10000);
                 }
-                $this->assertFileExists($marker, 'Worker fixture readiness failed; gateway responsiveness UNEXERCISED. Evidence retained at '.$directory.'; status='.json_encode($lastStatus).'; stages='.(is_file($directory.'/startup.jsonl') ? file_get_contents($directory.'/startup.jsonl') : 'none').'; stderr='.substr(file_get_contents($directory.'/stderr'), 0, 8192));
+                $this->assertFileExists($marker, 'Worker fixture readiness failed; gateway responsiveness UNEXERCISED. Evidence retained at '.$directory.'; status='.json_encode($lastStatus).'; stages='.$this->boundedFixtureRead($directory.'/startup.jsonl').'; stderr='.$this->boundedFixtureRead($directory.'/stderr'));
                 $deadline = microtime(true); // Gateway clock begins only after verified sending readiness.
                 $gateway = $this->gateway();
                 $token = $this->token([
@@ -1521,14 +1521,31 @@ class RealtimeGatewayTest extends TestCase
             } finally {
                 $status = proc_get_status($process);
                 $terminated = $status['running'];
+                $terminationRequested = null;
                 if ($terminated) {
-                    proc_terminate($process);
+                    $terminationRequested = proc_terminate($process);
+                    $reapDeadline = microtime(true) + 1;
+                    do {
+                        $status = proc_get_status($process);
+                        if (!$status['running']) { break; }
+                        usleep(10000);
+                    } while (microtime(true) < $reapDeadline);
                 }
-                $exit = proc_close($process);
-                file_put_contents($directory.'/result.json', json_encode(['status_before_cleanup' => $status, 'last_startup_status' => $lastStatus, 'forced_termination' => $terminated, 'close_exit' => $exit, 'marker_present' => is_file($marker), 'cleanup_at' => microtime(true), 'completed' => $completed], JSON_THROW_ON_ERROR));
-                if ($completed) { File::deleteDirectory($directory); }
+                // proc_close can wait indefinitely for a running child. External watchdog
+                // is mandatory: PHP shutdown/resource disposal and filesystem calls can also stall.
+                $exit = $status['running'] ? null : proc_close($process);
+                file_put_contents($directory.'/result.json', json_encode(['status_after_cleanup_wait' => $status, 'last_startup_status' => $lastStatus, 'forced_termination' => $terminated, 'termination_requested' => $terminationRequested, 'reap_deadline_exceeded' => $status['running'], 'close_exit' => $exit, 'marker_present' => is_file($marker), 'cleanup_at' => microtime(true), 'completed' => $completed], JSON_THROW_ON_ERROR));
+                if ($completed && !$status['running']) { File::deleteDirectory($directory); }
             }
         }
+    }
+
+    private function boundedFixtureRead(string $path): string
+    {
+        $stream = @fopen($path, 'rb');
+        if ($stream === false) { return 'unavailable'; }
+        try { return (string) fread($stream, 8192); }
+        finally { fclose($stream); }
     }
 
     private function gateway(): RealtimeGateway
