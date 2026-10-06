@@ -10,5 +10,7 @@ $taskChildInfo.UseShellExecute = $false
 $taskChildInfo.CreateNoWindow = $true
 foreach ($taskArgument in @('-NoProfile','-Command','Start-Sleep -Seconds 60')) { $taskChildInfo.ArgumentList.Add($taskArgument) }
 $taskChild = [Diagnostics.Process]::Start($taskChildInfo)
+if ($null -eq $taskChild -or $taskChild.HasExited) { throw 'Fixture child not running' }
+[Console]::Out.WriteLine('fixture.child.started:' + $taskChild.Id)
 if ($Case -eq 'timeout-tree') { Start-Sleep -Seconds 60 }
 exit 0

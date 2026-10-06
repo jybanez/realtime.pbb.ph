@@ -54,17 +54,18 @@ public static class WindowsDiagnosticJob
         public void RequestStop() { stop=true; }
         public void Drain(IntPtr handle) {
             try {
+                bool eof=false;
                 using(var stream = new FileStream(new SafeFileHandle(handle, true), FileAccess.Read, 1, false)) {
                     byte[] bytes=new byte[256]; char[] chunk=new char[512]; var decoder=Encoding.UTF8.GetDecoder();
                     while(!stop) {
                         uint available;
                         if(!PeekNamedPipe(handle,IntPtr.Zero,0,IntPtr.Zero,out available,IntPtr.Zero)) {
-                            if(Marshal.GetLastWin32Error()==109) Complete=true; else Failed=true;
+                            if(Marshal.GetLastWin32Error()==109) eof=true; else Failed=true;
                             break;
                         }
                         if(available==0) { Thread.Sleep(10); continue; }
                         int read=stream.Read(bytes,0,(int)Math.Min(256u,available));
-                        if(read==0) { Complete=true; break; }
+                        if(read==0) { eof=true; break; }
                         int count=decoder.GetChars(bytes,0,read,chunk,0,false);
                         lock(gate) {
                             int keep = Math.Min(count, 8192-retained.Length);
@@ -73,13 +74,14 @@ public static class WindowsDiagnosticJob
                         }
                     }
                 }
+                Complete=eof && !Failed; // Only after successful stream/handle disposal.
             } catch { Failed = true; }
         }
     }
     public sealed class Result {
         public uint Pid; public bool Timeout, RootReaped, Assigned, TreeCleanupVerified, TerminationRequested;
         public uint? RootExit; public string Failure; public Output Stdout = new Output(), Stderr = new Output();
-        public int ExitCode { get { return Failure != null || Timeout || !TreeCleanupVerified || !RootReaped || !Stdout.Complete || !Stderr.Complete ? 124 : (int)(RootExit ?? 124); } }
+        public int ExitCode { get { return Failure != null || Timeout || !TreeCleanupVerified || !RootReaped || Stdout.Failed || Stderr.Failed || !Stdout.Complete || !Stderr.Complete ? 124 : (int)(RootExit ?? 124); } }
     }
     static string Quote(string value) {
         var b = new StringBuilder("\""); int slashes=0;
